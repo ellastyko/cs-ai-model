@@ -1,5 +1,156 @@
-from map.opengl import PrismRenderer
+import sys
+import numpy as np
+from PyQt5.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget
+from PyQt5.QtOpenGL import QGLWidget
+from PyQt5.QtCore import Qt, QPoint
+from OpenGL.GL import *
+from OpenGL.GLU import *
+
+
+class GLWidget(QGLWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.camera_pos = [500, 800, 1500]
+        self.rotate_x, self.rotate_y = 30, 90
+        self.zoom = -6000
+        self.last_pos = QPoint()
+        self.prisms = [
+            ((0, -100, 0), (6000, 10, 7000), (0.2, 0.5, 0.8, 0.8)),  # Море
+            ((342, 0, 2384), (336, 15, 377), (0.3, 0.3, 0.3, 1.0)),
+            ((622, 0, 2153), (380, 15, 434), (0.3, 0.3, 0.3, 1.0)),
+            ((605, 126, 2351), (222, 261, 482), (0.7, 0.7, 0.7, 1.0))
+        ]
+
+    def initializeGL(self):
+        glEnable(GL_DEPTH_TEST)
+        glEnable(GL_BLEND)
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+        glClearColor(0.53, 0.81, 0.98, 1.0)
+
+        # Освещение
+        glEnable(GL_LIGHTING)
+        glEnable(GL_LIGHT0)
+        glLightfv(GL_LIGHT0, GL_POSITION, [1, 1, 1, 0])
+        glLightfv(GL_LIGHT0, GL_AMBIENT, [0.2, 0.2, 0.2, 1])
+        glLightfv(GL_LIGHT0, GL_DIFFUSE, [0.8, 0.8, 0.8, 1])
+        glLightfv(GL_LIGHT0, GL_SPECULAR, [1, 1, 1, 1])
+
+        glMaterialfv(GL_FRONT, GL_AMBIENT, [0.2, 0.2, 0.2, 1])
+        glMaterialfv(GL_FRONT, GL_DIFFUSE, [0.8, 0.8, 0.8, 1])
+        glMaterialfv(GL_FRONT, GL_SPECULAR, [1, 1, 1, 1])
+        glMaterialf(GL_FRONT, GL_SHININESS, 50)
+        glEnable(GL_COLOR_MATERIAL)
+
+    def resizeGL(self, w, h):
+        glViewport(0, 0, w, h)
+        glMatrixMode(GL_PROJECTION)
+        glLoadIdentity()
+        gluPerspective(45, w / h, 0.1, 50000.0)
+        glMatrixMode(GL_MODELVIEW)
+
+    def paintGL(self):
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+        glLoadIdentity()
+
+        # Управление камерой
+        glTranslatef(0, 0, self.zoom)
+        glRotatef(self.rotate_x, 1, 0, 0)
+        glRotatef(self.rotate_y, 0, 1, 0)
+
+        # Источник света
+        glLightfv(GL_LIGHT0, GL_POSITION, [5, 10, 5, 1])
+
+        # Оси координат
+        self.draw_axes(1500)
+
+        # Отрисовка призм
+        for center, size, color in self.prisms:
+            self.draw_prism(center, size, color)
+
+        # HUD
+        self.draw_hud()
+
+    def draw_prism(self, center, size, color):
+        w, h, d = size[0] / 2, size[1] / 2, size[2] / 2
+        x, y, z = center
+
+        vertices = [
+            [x + w, y - h, z - d], [x + w, y + h, z - d], [x - w, y + h, z - d], [x - w, y - h, z - d],
+            [x + w, y - h, z + d], [x + w, y + h, z + d], [x - w, y - h, z + d], [x - w, y + h, z + d]
+        ]
+
+        glBegin(GL_QUADS)
+        glColor4fv(color)
+
+        # Грани с нормалями
+        faces = [
+            ([0, 1, 2, 3], [0, 0, 1]),  # Передняя
+            ([4, 5, 7, 6], [0, 0, -1]),  # Задняя
+            ([0, 1, 5, 4], [0, 1, 0]),  # Верхняя
+            ([3, 2, 7, 6], [0, -1, 0]),  # Нижняя
+            ([0, 3, 6, 4], [-1, 0, 0]),  # Левая
+            ([1, 2, 7, 5], [1, 0, 0])  # Правая
+        ]
+
+        for indices, normal in faces:
+            glNormal3fv(normal)
+            for idx in indices:
+                glVertex3fv(vertices[idx])
+        glEnd()
+
+    def draw_axes(self, length):
+        glBegin(GL_LINES)
+        glColor3f(1, 0, 0)
+        glVertex3f(0, 0, 0)
+        glVertex3f(length, 0, 0)  # X
+        glColor3f(0, 1, 0)
+        glVertex3f(0, 0, 0)
+        glVertex3f(0, length, 0)  # Y
+        glColor3f(0, 0, 1)
+        glVertex3f(0, 0, 0)
+        glVertex3f(0, 0, length)  # Z
+        glEnd()
+
+    def draw_hud(self):
+        self.renderText(10, 20, f"Rotation: X={self.rotate_x:.1f}° Y={self.rotate_y:.1f}°")
+        self.renderText(10, 40, f"Zoom: Z={self.zoom:.1f}°")
+        self.renderText(10, 60, "Controls: LMB - rotate, Wheel - zoom")
+
+    def mousePressEvent(self, event):
+        self.last_pos = event.pos()
+
+    def mouseMoveEvent(self, event):
+        if event.buttons() == Qt.LeftButton:
+            dx = event.x() - self.last_pos.x()
+            dy = event.y() - self.last_pos.y()
+            self.rotate_y += dx * 0.5
+            self.rotate_x += dy * 0.5
+            self.last_pos = event.pos()
+            self.update()
+
+    def wheelEvent(self, event):
+        self.zoom += event.angleDelta().y() * 0.2
+        self.update()
+
+
+class MainWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("FARMAI")
+        self.setGeometry(100, 100, 1200, 800)
+
+        central_widget = QWidget()
+        self.setCentralWidget(central_widget)
+
+        layout = QVBoxLayout()
+        central_widget.setLayout(layout)
+
+        self.glWidget = GLWidget()
+        layout.addWidget(self.glWidget)
+
 
 if __name__ == "__main__":
-    renderer = PrismRenderer()
-    renderer.run()
+    app = QApplication(sys.argv)
+    window = MainWindow()
+    window.show()
+    sys.exit(app.exec_())
