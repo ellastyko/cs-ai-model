@@ -5,21 +5,36 @@ from PyQt5.QtOpenGL import QGLWidget
 from PyQt5.QtCore import Qt, QPoint
 from OpenGL.GL import *
 from OpenGL.GLU import *
+from map.map import Map 
 
 
 class GLWidget(QGLWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.camera_pos = [500, 800, 1500]
-        self.rotate_x, self.rotate_y = 30, 90
-        self.zoom = -6000
+        self.prisms = []
+
+        map = Map()
+        mapdata = map.resources('cs_italy')
+
+        view = mapdata['view']
+
+        self.camera_pos = view['camera']['position']
+        self.rotate_x, self.rotate_y = view['rotation']['x'], view['rotation']['y']
+        self.zoom = view['camera']['zoom']
+
+        groups = mapdata['groups']
+
+        for group_name in groups:
+            color = groups[group_name]['color']
+            elements = groups[group_name]['elements']
+
+            for el in elements:
+                center = (el['x'], el['z'], el['y'])
+                size   = (el['width'], el['height'], el['length'])
+
+                self.prisms.append((center, size, color))
+
         self.last_pos = QPoint()
-        self.prisms = [
-            ((0, -100, 0), (6000, 10, 7000), (0.2, 0.5, 0.8, 0.8)),  # Море
-            ((342, 0, 2384), (336, 15, 377), (0.3, 0.3, 0.3, 1.0)),
-            ((622, 0, 2153), (380, 15, 434), (0.3, 0.3, 0.3, 1.0)),
-            ((605, 126, 2351), (222, 261, 482), (0.7, 0.7, 0.7, 1.0))
-        ]
 
     def initializeGL(self):
         glEnable(GL_DEPTH_TEST)
