@@ -2,15 +2,11 @@ import os
 import torch
 from torch.utils.data import Dataset
 from utils.dataset import CS2Dataset
-from PIL import Image
-import pandas as pd
 import matplotlib.pyplot as plt
-from transformers import ViTModel, ViTFeatureExtractor
+from transformers import ViTFeatureExtractor
 import torch.nn as nn
 from torch.optim import AdamW
 from torch.utils.data import DataLoader
-import numpy as np
-from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 from model import ViTRegression
     
