@@ -1,0 +1,69 @@
+{
+    "view": {
+        "camera": {
+            "position": [500, 800, 1500],
+            "zoom": -8000
+        },
+        "rotation": {
+            "x": 30,
+            "y": 90
+        }
+    },
+    "groups": {
+        "base": {
+            "color": [0.2, 0.5, 0.8, 0.8],
+            "elements": [
+                {
+                    "x": 0,
+                    "y": 0,
+                    "z": -100,
+                    "width": 6000,
+                    "length": 7000,
+                    "height": 0
+                }
+            ]
+        },
+        "roads": {
+            "color": [0.7, 0.7, 0.7, 1.0],
+            "elements": [
+                {
+                    "x": 342,
+                    "y": 2384,
+                    "z": 0,
+                    "width": 336,
+                    "length": 377,
+                    "height": 0
+                },
+                {
+                    "x": 622,
+                    "y": 2153,
+                    "z": 0,
+                    "width": 380,
+                    "length": 434,
+                    "height": 0
+                }
+            ]
+        },
+        "buildings": {
+            "color": [0.5, 0.5, 0.5, 1.0],
+            "elements": [
+                {
+                    "x": 605,
+                    "y": 2351,
+                    "z": 126,
+                    "width": 222,
+                    "length": 482,
+                    "height": 261
+                },
+                {
+                    "x": 0,
+                    "y": 0,
+                    "z": 0,
+                    "width": 0,
+                    "length": 0,
+                    "height": 0
+                }
+            ]
+        }
+    }
+}
