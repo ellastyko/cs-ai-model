@@ -11,8 +11,6 @@ from map.map import Map
 class GLWidget(QGLWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.prisms = []
-
         map = Map()
         mapdata = map.resources('cs_italy')
 
@@ -23,6 +21,8 @@ class GLWidget(QGLWidget):
         self.zoom = view['camera']['zoom']
 
         groups = mapdata['groups']
+
+        self.prisms = []
 
         for group_name in groups:
             color = groups[group_name]['color']
@@ -151,16 +151,19 @@ class GLWidget(QGLWidget):
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("FARMAI")
+        self.setWindowTitle("FARM AI")
         self.setGeometry(100, 100, 1200, 800)
 
         central_widget = QWidget()
+        # right_widget = QWidget()
         self.setCentralWidget(central_widget)
+        # self.setCentralWidget(right_widget)
 
         layout = QVBoxLayout()
         central_widget.setLayout(layout)
 
         self.glWidget = GLWidget()
+        layout.addWidget(self.glWidget)
         layout.addWidget(self.glWidget)
 
 
