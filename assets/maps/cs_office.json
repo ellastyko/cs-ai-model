@@ -1,0 +1,39 @@
+{
+    "view": {
+        "camera": {
+            "position": [500, 800, 1500],
+            "zoom": -6000
+        },
+        "rotation": {
+            "x": -10,
+            "z": 0
+        }
+    },
+    "groups": {
+        "base": {
+            "color": [0.2, 0.5, 0.8, 0.8],
+            "elements": [
+                {
+                    "x": 0,
+                    "y": 0,
+                    "z": -260,
+                    "width": 6000,
+                    "length": 7000,
+                    "height": 0
+                }
+            ]
+        },
+        "roads": {
+            "color": [0.7, 0.7, 0.7, 1.0],
+            "elements": []
+        },
+        "ramp": {
+            "color": [255, 0.7, 0.7, 1.0],
+            "elements": []
+        },
+        "buildings": {
+            "color": [0.5, 0.5, 0.5, 1.0],
+            "elements": []
+        }
+    }
+}

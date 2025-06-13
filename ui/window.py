@@ -1,5 +1,6 @@
 from PyQt5.QtWidgets import QMainWindow, QHBoxLayout, QWidget
-from ui.widgets import SidebarWidget, MainWidget
+from ui.widgets.sidebar import SidebarWidget
+from ui.widgets.main import MainWidget
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -15,7 +16,7 @@ class MainWindow(QMainWindow):
         layout = QHBoxLayout()
         central_widget.setLayout(layout)
 
-        self.glWidget   = MainWidget()
+        self.mainWidget     = MainWidget()
         self.sidebarWidget  = SidebarWidget()
-        layout.addWidget(self.glWidget, stretch=7)
+        layout.addWidget(self.mainWidget, stretch=7)
         layout.addWidget(self.sidebarWidget, stretch=3)

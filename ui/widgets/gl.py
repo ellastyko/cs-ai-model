@@ -1,11 +1,10 @@
 import os
 from PyQt5.QtOpenGL import QGLWidget
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QComboBox, QFrame
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QComboBox, QFrame, QMessageBox
 from PyQt5.QtCore import Qt, QPoint, pyqtSignal, QObject
 from PyQt5.QtGui import QPixmap
 from OpenGL.GL import *
 from OpenGL.GLU import *
-from utils.map import Map 
 from utils.colors import parse_to_rgba
 from location.utils.dataset import parse_filename
 from PyQt5.QtWidgets import QPushButton, QLabel
@@ -14,186 +13,8 @@ from PIL import Image
 from transformers import ViTImageProcessor
 from utils.models import ModelManager
 from utils.helpers import open_image, delete_image
-
-class EventDispatcher(QObject):
-    title_changed = pyqtSignal(str)
-    image_changed = pyqtSignal(str)
-
-# Где-то в главном коде:
-dispatcher = EventDispatcher()
-
-class SidebarWidget(QWidget):
-    def __init__(self):
-        super().__init__()
-        layout = QVBoxLayout()
-        self.setLayout(layout)
-
-        self.locationPreveiwWidget = LocationPreviewWidget()
-        self.settingsWidget = SettingsWidget()
-        self.lobbyWidget     = LobbyWidget()
-
-        layout.addWidget(self.locationPreveiwWidget, stretch=3)
-        layout.addWidget(self.settingsWidget, stretch=3)
-        layout.addWidget(self.lobbyWidget, stretch=4)
-
-class SettingsWidget(QFrame):
-    def __init__(self):
-        super().__init__()
-        layout = QVBoxLayout()
-        self.setLayout(layout)
-
-        self.setStyleSheet("""
-            border-radius: 5px;
-            background-color: #303030;
-            color: white;
-        """)
-
-        # Создаем заголовок
-        self.title = QLabel("Settings")
-        self.title.setStyleSheet("""
-            font-size: 14px;
-            font-weight: bold;
-            background-color: #212121; 
-            padding: 5px;
-            margin-bottom: 10px;
-        """)
-        
-
-        self.title.setAlignment(Qt.AlignCenter)
-        layout.addWidget(self.title)
-
-class LobbyWidget(QFrame):
-    def __init__(self):
-        super().__init__()
-        layout = QVBoxLayout()
-        self.setLayout(layout)
-
-        self.setStyleSheet("""
-            border-radius: 5px;
-            background-color: #303030;
-            color: white;
-        """)
-
-        # Создаем заголовок
-        self.title = QLabel("Sources")
-        self.title.setStyleSheet("""
-            font-size: 14px;
-            font-weight: bold;
-            background-color: #212121; 
-            padding: 5px;
-            margin-bottom: 10px;
-        """)
-        self.title.setAlignment(Qt.AlignCenter)
-
-        self.add_source_btn = QPushButton("Add source")
-
-        layout.addWidget(self.title)
-        layout.addWidget(self.add_source_btn)
-
-class LocationPreviewWidget(QFrame):
-    DEFAULT_IMG = 'assets/no-img.png'
-    DEFAULT_TEXT = 'Coordinates'
-
-    def __init__(self):
-        super().__init__()
-        layout = QVBoxLayout()
-        self.setLayout(layout)
-
-        self.current_image_path = None
-
-        dispatcher.title_changed.connect(self.set_title)
-        dispatcher.image_changed.connect(self.set_image)
-
-            # Почему цвет фон добавился к двум  QLabel а не контейнеру. ПРостранство между QLabel не такого цвета как я указал для этого блока
-        self.setStyleSheet("""
-            border-radius: 5px;
-            background-color: #303030; 
-            color: white;
-        """)
-
-        # Создаем заголовок
-        self.title_label = QLabel(self.DEFAULT_TEXT)
-        self.title_label.setStyleSheet("""
-            font-size: 14px;
-            font-weight: bold;
-            background-color: #212121; 
-            padding: 5px;
-            margin-bottom: 10px;
-        """)
-        self.title_label.setAlignment(Qt.AlignCenter)
-
-        # Создаем виджет для изображения
-        self.image_label = QLabel()
-        self.image_label.setAlignment(Qt.AlignCenter)
-        self.image_label.setStyleSheet("margin: 5px; padding: 5px; background-color: #212121;")
-        self.reset_to_default()
-
-        btn_layout = QHBoxLayout()
-
-        self.delete_image_btn = QPushButton('Delete')
-        self.show_image_btn = QPushButton('Show image')
-
-        self.delete_image_btn.clicked.connect(self.on_delete_image)
-        self.show_image_btn.clicked.connect(self.on_show_image)
-
-        btnStyle = """
-            QPushButton {
-                background-color: #212121;
-                color: white;
-                padding: 5px;
-                font-size: 12px;
-                border-radius: 3px;
-            }
-            QPushButton:hover {
-                background-color: #45a049;
-            }
-        """
-
-        self.delete_image_btn.setStyleSheet(btnStyle)
-        self.show_image_btn.setStyleSheet(btnStyle)
-
-        layout.addWidget(self.title_label)
-        layout.addWidget(self.image_label)
-        layout.addLayout(btn_layout)
-        btn_layout.addWidget(self.show_image_btn)
-        btn_layout.addWidget(self.delete_image_btn)
-
-        # Добавляем растягивающий элемент для правильного позиционирования
-        layout.addStretch()
-    
-    def on_show_image(self):
-        open_image(self.current_image_path)
-
-    def on_delete_image(self):
-        delete_image(self.current_image_path)
-        self.reset_to_default()
-
-    def set_title(self, text: str):
-        """Установка текста заголовка"""
-        self.title_label.setText(text)
-
-    def reset_to_default(self): 
-        self.current_image_path = None
-        self.title_label.setText(self.DEFAULT_TEXT)
-        self.set_image(self.DEFAULT_IMG, False)
-
-    def set_image(self, image_path: str, save_as_current = True):
-        """Загрузка и отображение изображения"""
-        if save_as_current is True:
-            self.current_image_path = image_path
-
-        pixmap = QPixmap(image_path)
-        
-        # Масштабируем изображение, сохраняя пропорции
-        if not pixmap.isNull():
-            scaled_pixmap = pixmap.scaled(
-                300, 200,  # Ширина, высота
-                Qt.KeepAspectRatio, 
-                Qt.SmoothTransformation
-            )
-            self.image_label.setPixmap(scaled_pixmap)
-        else:
-            self.image_label.setText("Изображение не найдено")
+from ui.dispatcher import dispatcher
+from utils import map
 
 class MapControllerWidget(QWidget):
     def __init__(self, glWidget):
@@ -205,15 +26,8 @@ class MapControllerWidget(QWidget):
         self.buttonMap = QPushButton("Map")
         self.buttonVisualTest = QPushButton("Model visual test")
         self.buttonScreenshotDots = QPushButton("Screenshot density")
-        self.combobox = QComboBox()
-
-        for filename in ModelManager.list():
-            self.combobox.addItem(filename)
-        
-        self.comboboxChanged(ModelManager.list()[-1])
 
         # Event handlers
-        self.combobox.currentTextChanged.connect(self.comboboxChanged)
         self.buttonMap.clicked.connect(self.onMapClick)
         self.buttonVisualTest.clicked.connect(self.onVisualTestClick)
         self.buttonScreenshotDots.clicked.connect(self.onScreenshotDotsClick)
@@ -224,39 +38,20 @@ class MapControllerWidget(QWidget):
                 color: white;
                 padding: 5px;
                 font-size: 12px;
-                border-radius: 3px;
+                border-radius: 5px;
             }
             QPushButton:hover {
                 background-color: #45a049;
             }
         """
 
-        cboxStyle = """
-            QComboBox {
-                background-color: #303030;
-                color: white;
-                padding: 5px;
-                font-size: 12px;
-                border-radius: 3px;
-            }
-            QComboBox:!editable:on, QComboBox::drop-down:editable:on {
-                color: white;
-            }   
-        """
-
         self.buttonMap.setStyleSheet(btnStyle)
         self.buttonVisualTest.setStyleSheet(btnStyle)
         self.buttonScreenshotDots.setStyleSheet(btnStyle)
-        self.combobox.setStyleSheet(cboxStyle)
 
         layout.addWidget(self.buttonMap)
         layout.addWidget(self.buttonVisualTest)
         layout.addWidget(self.buttonScreenshotDots)
-        layout.addWidget(self.combobox)
-    
-    # Model change handler
-    def comboboxChanged(self, value):
-        ModelManager.switchModel(value)
         
     def onMapClick(self,):
         self.glWidget.clearElements()
@@ -267,19 +62,9 @@ class MapControllerWidget(QWidget):
     def onScreenshotDotsClick(self,):
         self.glWidget.visualiseScreenshots()
 
-class MainWidget(QWidget): 
-    def __init__(self):
-        super().__init__()
-        layout = QVBoxLayout()
-        self.setLayout(layout)
-
-        self.glWidget   = GLWidget()
-        self.mapControllerWidget  = MapControllerWidget(self.glWidget)
-        layout.addWidget(self.mapControllerWidget, stretch=1)
-        layout.addWidget(self.glWidget, stretch=9)
-
 class GLWidget(QGLWidget):
     VISUAL_TEST_DIR = 'location/dataset/visualtest'
+    DATASET_TYPE = 'test'
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -290,18 +75,17 @@ class GLWidget(QGLWidget):
             color: white;
         """)
 
+        dispatcher.map_changed.connect(self.upload_map)
+
         # Загрузка и подготовка изображения
         self.processor = ViTImageProcessor.from_pretrained("google/vit-base-patch16-224")
-
-        self.map = Map()
-
-        self.currentMap = 'cs_italy'
-        self.upload_map()
         
         self.last_pos = QPoint()
     
-    def upload_map(self):
-        mapdata = self.map.resources(self.currentMap)
+    def upload_map(self, mapname):
+        self.currentMap = mapname
+
+        mapdata = map.get_map_resources(self.currentMap)
 
         view = mapdata['view']
 
@@ -329,6 +113,8 @@ class GLWidget(QGLWidget):
                 size   = (el['width'], el['length'], el['height'], )
 
                 self.prisms.append((center, size, color))
+        
+        self.update()
 
     def predictCoordinates(self, img_path):
         self.model, model_name = ModelManager.getCurrentModel()
@@ -360,6 +146,10 @@ class GLWidget(QGLWidget):
 
         root_dir = f'{self.VISUAL_TEST_DIR}/{self.currentMap}'
 
+        if os.path.exists(root_dir) is False:
+            QMessageBox.critical(None, "Ошибка", f"Отсутвует директория с папкой {self.currentMap} по пути {root_dir}")
+            return
+
         for filename in os.listdir(root_dir):
             if filename.endswith(".jpg"):
                 expected = parse_filename(filename)
@@ -390,23 +180,21 @@ class GLWidget(QGLWidget):
                 self.dots.append(real_dot)
 
                 self.connections.append([length, length + 1, (0.0, 0.0, 1.0, 1.0)])
+        self.update()
 
     def visualiseScreenshots(self):
-        root_dir = 'location/dataset/test'
+        dir = f'location/dataset/{self.DATASET_TYPE}/{self.currentMap}'
 
         # Собираем все изображения
-        for map_name in os.listdir(root_dir):
-            map_dir = os.path.join(root_dir, map_name)
-            if not os.path.isdir(map_dir):
-                continue
+        for filename in os.listdir(dir):
+            if filename.endswith(".jpg"):
+                metadata = parse_filename(filename)
 
-            for filename in os.listdir(map_dir):
-                if filename.endswith(".jpg"):
-                    metadata = parse_filename(filename)
-
-                    data = {'value': f"{metadata['x']} {metadata['y']} {metadata['z']}", 'imgpath': f"{map_dir}/{filename}"}
+                data = {'value': f"{metadata['x']} {metadata['y']} {metadata['z']}", 'imgpath': f"{dir}/{filename}"}
+    
+                self.dots.append(self.create_dot((metadata['x'], metadata['y'], metadata['z']), color='red', radius=5, data=data))
         
-                    self.dots.append(self.create_dot((metadata['x'], metadata['y'], metadata['z']), color='red', radius=5, data=data))
+        self.update()
 
     def initializeGL(self):
         glEnable(GL_DEPTH_TEST)
