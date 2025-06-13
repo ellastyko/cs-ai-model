@@ -1,6 +1,6 @@
 import os
 from PyQt5.QtOpenGL import QGLWidget
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QComboBox, QFrame, QMessageBox
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QComboBox, QFrame, QMessageBox, QStackedWidget
 from PyQt5.QtCore import Qt, QPoint, pyqtSignal, QObject
 from PyQt5.QtGui import QPixmap
 from OpenGL.GL import *
@@ -16,69 +16,6 @@ from utils.helpers import open_image, delete_image
 from ui.dispatcher import dispatcher
 from utils import map
 
-btnStyle = """
-            QPushButton {
-                min-width: 220px;
-                background-color: #303030;
-                color: white;
-                padding: 5px;
-                font-size: 12px;
-                border-radius: 5px;
-            }
-            QPushButton:hover {
-                background-color: #45a049;
-            }
-        """
-
-class MapControllerWidget(QWidget):
-    def __init__(self, glWidget):
-        super().__init__()
-        self.glWidget = glWidget
-        layout = QVBoxLayout()
-        self.setLayout(layout)
-
-        h1_layout = QHBoxLayout()
-
-        h2_layout = QHBoxLayout()
-        layout.addLayout(h1_layout)
-        layout.addLayout(h2_layout)
-
-        self.btn_3dmap = QPushButton("3D Map")
-        self.btn_demo = QPushButton("Demo")
-
-        self.btn_map = QPushButton("Map")
-        self.btn_visual_test = QPushButton("Model visual test")
-        self.btn_screenshot_dots = QPushButton("Screenshot density")
-
-        # Event handlers
-        self.btn_map.clicked.connect(self.onMapClick)
-        self.btn_visual_test.clicked.connect(self.onVisualTestClick)
-        self.btn_screenshot_dots.clicked.connect(self.onScreenshotDotsClick)
-
-        self.btn_3dmap.setStyleSheet(btnStyle)
-        self.btn_demo.setStyleSheet(btnStyle)
-
-        self.btn_map.setStyleSheet(btnStyle)
-        self.btn_visual_test.setStyleSheet(btnStyle)
-        self.btn_screenshot_dots.setStyleSheet(btnStyle)
-
-        h1_layout.setAlignment(Qt.AlignLeft | Qt.AlignTop) 
-        h1_layout.addWidget(self.btn_3dmap)
-        h1_layout.addWidget(self.btn_demo)
-
-        h2_layout.addWidget(self.btn_map)
-        h2_layout.addWidget(self.btn_visual_test)
-        h2_layout.addWidget(self.btn_screenshot_dots)
-        
-    def onMapClick(self,):
-        self.glWidget.clearElements()
-
-    def onVisualTestClick(self,):
-        self.glWidget.visualtest()
-    
-    def onScreenshotDotsClick(self,):
-        self.glWidget.visualiseScreenshots()
-
 class GLWidget(QGLWidget):
     VISUAL_TEST_DIR = 'location/dataset/visualtest'
     REAL_TEST_DIR = 'location/dataset/realtest'
@@ -87,18 +24,28 @@ class GLWidget(QGLWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
 
+        dispatcher.map_mode.connect(self.set_mode)
+        dispatcher.map_changed.connect(self.upload_map)
+
+        self.upload_map('cs_italy')
+        # Загрузка и подготовка изображения
+        self.processor = ViTImageProcessor.from_pretrained("google/vit-base-patch16-224")
+        self.last_pos = QPoint()
+    
+    def _init_ui(self):
         self.setStyleSheet("""
             border-radius: 5px;
             background-color: #303030;
             color: white;
         """)
 
-        dispatcher.map_changed.connect(self.upload_map)
-
-        # Загрузка и подготовка изображения
-        self.processor = ViTImageProcessor.from_pretrained("google/vit-base-patch16-224")
-        
-        self.last_pos = QPoint()
+    def set_mode(self, mode):
+        if mode == 'default_map_view':
+            self.upload_map(self.currentMap)
+        elif mode == 'visual_test':
+            self.visualtest()
+        elif mode == 'screenshot_density':
+            self.visualiseScreenshots()
     
     def upload_map(self, mapname):
         self.currentMap = mapname
@@ -127,15 +74,12 @@ class GLWidget(QGLWidget):
             elements = groups[group_name]['elements']
 
             for el in elements:
-                center = (el['x'], el['y'], el['z'],)
-                size   = (el['width'], el['length'], el['height'], )
-
-                self.prisms.append((center, size, color))
+                self.prisms.append(((el['x'], el['y'], el['z']), (el['width'], el['length'], el['height']), color))
         
         self.update()
 
     def predictCoordinates(self, img_path):
-        self.model, model_name = ModelManager.getCurrentModel()
+        self.model, _ = ModelManager.getCurrentModel()
 
         # Predict coordinates with image
         image = Image.open(img_path)
@@ -296,7 +240,7 @@ class GLWidget(QGLWidget):
             glPopMatrix()
         
         # 3) Подсветка при наведении (если нужно)
-        if self.hovered_dot is not None and self.hovered_dot != self.selected_dot:
+        if self.hovered_dot is not None and self.hovered_dot != self.selected_dot and len(self.dots) > self.hovered_dot:
             dot = self.dots[self.hovered_dot]
             pos = dot["position"]
             radius = dot["radius"]
@@ -553,3 +497,8 @@ class GLWidget(QGLWidget):
             color, radius, selected = self.dots[self.selected_dot][1:]
             self.dots[self.selected_dot] = (list(new_pos), color, radius, selected)
             self.update()
+
+    def cleanup(self):
+        self.makeCurrent()
+        # Очисти буферы, текстуры, выделенную память
+        self.doneCurrent()

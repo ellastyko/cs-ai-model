@@ -1,6 +1,6 @@
 import os
 from PyQt5.QtOpenGL import QGLWidget
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QComboBox, QFrame
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QComboBox, QFrame, QCheckBox
 from PyQt5.QtCore import Qt, QPoint, pyqtSignal, QObject
 from PyQt5.QtGui import QPixmap
 from utils import map
@@ -40,6 +40,13 @@ cboxStyle = """
             }   
         """
 
+chboxStyle = """
+            QCheckBox {
+                padding: 3px;
+                color: white;
+            }
+        """
+
 class SidebarWidget(QWidget):
     def __init__(self):
         super().__init__()
@@ -48,7 +55,7 @@ class SidebarWidget(QWidget):
 
         self.locationPreveiwWidget = LocationPreviewWidget()
         self.settingsWidget        = SettingsWidget()
-        self.sourceWidget           = SourceWidget()
+        self.sourceWidget          = SourceWidget()
 
         layout.addWidget(self.locationPreveiwWidget, stretch=3)
         layout.addWidget(self.settingsWidget, stretch=3)
@@ -81,7 +88,12 @@ class SettingsWidget(QFrame):
         """)
 
         self.cbox_model = QComboBox()
-        self.cbox_map = QComboBox()
+        self.cbox_map   = QComboBox()
+        self.chbox_buildings_visibility = QCheckBox("Hide buildings")
+        self.chbox_path_graph           = QCheckBox("Show path graph")
+        self.cbox_path_scripts          = QComboBox()
+
+        self.cbox_path_scripts.addItems(['1x1', '2x2', '3x3'])
 
         for filename in ModelManager.list():
             self.cbox_model.addItem(filename)
@@ -94,11 +106,11 @@ class SettingsWidget(QFrame):
 
         if nmodel is None:
             nmodel = ModelManager.list()[-1] 
-            ConfigManager.get('neural_model', nmodel)
+            ConfigManager.set('neural_model', nmodel)
 
         if lomap is None:
             lomap = map.get_map_list()[0]
-            ConfigManager.get('last_opened_map', lomap)
+            ConfigManager.set('last_opened_map', lomap)
 
         # Set default values
         self.cbox_model_update(nmodel)
@@ -108,21 +120,27 @@ class SettingsWidget(QFrame):
         self.cbox_map.currentTextChanged.connect(self.cbox_map_update)
         self.cbox_model.setStyleSheet(cboxStyle)
         self.cbox_map.setStyleSheet(cboxStyle)
+        self.cbox_path_scripts.setStyleSheet(cboxStyle)
 
-        layout.addWidget(self.label_title)
-        layout.addLayout(inner_layout)
-        inner_layout.addWidget(self.cbox_model)
-        inner_layout.addWidget(self.cbox_map)
+        self.chbox_buildings_visibility.setStyleSheet(chboxStyle)
+        self.chbox_path_graph.setStyleSheet(chboxStyle)
+
+        layout.addWidget(self.label_title, 1)
+        layout.addWidget(self.cbox_model)
+        layout.addWidget(self.cbox_map)
+        layout.addWidget(self.cbox_path_scripts)
+        layout.addWidget(self.chbox_path_graph)
+        layout.addWidget(self.chbox_buildings_visibility)
 
     # Model change handler
     def cbox_model_update(self, value):
         ModelManager.switchModel(value)
-        ConfigManager.get('neural_model', value)
+        ConfigManager.set('neural_model', value)
 
     # Map change handler
     def cbox_map_update(self, value):
         dispatcher.map_changed.emit(value)
-        ConfigManager.get('last_opened_map', value)
+        ConfigManager.set('last_opened_map', value)
 
 class SourceWidget(QFrame):
     def __init__(self):
