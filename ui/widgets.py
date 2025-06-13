@@ -13,6 +13,7 @@ import torch
 from PIL import Image
 from transformers import ViTImageProcessor
 from utils.models import ModelManager
+from utils.helpers import open_image, delete_image
 
 class EventDispatcher(QObject):
     title_changed = pyqtSignal(str)
@@ -84,16 +85,21 @@ class LobbyWidget(QFrame):
         """)
         self.title.setAlignment(Qt.AlignCenter)
 
-        self.buttonAddSource = QPushButton("Add source")
+        self.add_source_btn = QPushButton("Add source")
 
         layout.addWidget(self.title)
-        layout.addWidget(self.buttonAddSource)
+        layout.addWidget(self.add_source_btn)
 
 class LocationPreviewWidget(QFrame):
+    DEFAULT_IMG = 'assets/no-img.png'
+    DEFAULT_TEXT = 'Coordinates'
+
     def __init__(self):
         super().__init__()
         layout = QVBoxLayout()
         self.setLayout(layout)
+
+        self.current_image_path = None
 
         dispatcher.title_changed.connect(self.set_title)
         dispatcher.image_changed.connect(self.set_image)
@@ -106,7 +112,7 @@ class LocationPreviewWidget(QFrame):
         """)
 
         # Создаем заголовок
-        self.title_label = QLabel("Coordinates")
+        self.title_label = QLabel(self.DEFAULT_TEXT)
         self.title_label.setStyleSheet("""
             font-size: 14px;
             font-weight: bold;
@@ -120,20 +126,62 @@ class LocationPreviewWidget(QFrame):
         self.image_label = QLabel()
         self.image_label.setAlignment(Qt.AlignCenter)
         self.image_label.setStyleSheet("margin: 5px; padding: 5px; background-color: #212121;")
-        self.set_image()
+        self.reset_to_default()
+
+        btn_layout = QHBoxLayout()
+
+        self.delete_image_btn = QPushButton('Delete')
+        self.show_image_btn = QPushButton('Show image')
+
+        self.delete_image_btn.clicked.connect(self.on_delete_image)
+        self.show_image_btn.clicked.connect(self.on_show_image)
+
+        btnStyle = """
+            QPushButton {
+                background-color: #212121;
+                color: white;
+                padding: 5px;
+                font-size: 12px;
+                border-radius: 3px;
+            }
+            QPushButton:hover {
+                background-color: #45a049;
+            }
+        """
+
+        self.delete_image_btn.setStyleSheet(btnStyle)
+        self.show_image_btn.setStyleSheet(btnStyle)
 
         layout.addWidget(self.title_label)
         layout.addWidget(self.image_label)
+        layout.addLayout(btn_layout)
+        btn_layout.addWidget(self.show_image_btn)
+        btn_layout.addWidget(self.delete_image_btn)
 
         # Добавляем растягивающий элемент для правильного позиционирования
         layout.addStretch()
+    
+    def on_show_image(self):
+        open_image(self.current_image_path)
+
+    def on_delete_image(self):
+        delete_image(self.current_image_path)
+        self.reset_to_default()
 
     def set_title(self, text: str):
         """Установка текста заголовка"""
         self.title_label.setText(text)
 
-    def set_image(self, image_path: str  = 'assets/no-img.png'):
+    def reset_to_default(self): 
+        self.current_image_path = None
+        self.title_label.setText(self.DEFAULT_TEXT)
+        self.set_image(self.DEFAULT_IMG, False)
+
+    def set_image(self, image_path: str, save_as_current = True):
         """Загрузка и отображение изображения"""
+        if save_as_current is True:
+            self.current_image_path = image_path
+
         pixmap = QPixmap(image_path)
         
         # Масштабируем изображение, сохраняя пропорции
@@ -355,8 +403,10 @@ class GLWidget(QGLWidget):
             for filename in os.listdir(map_dir):
                 if filename.endswith(".jpg"):
                     metadata = parse_filename(filename)
+
+                    data = {'value': f"{metadata['x']} {metadata['y']} {metadata['z']}", 'imgpath': f"{map_dir}/{filename}"}
         
-                    self.dots.append(self.create_dot((metadata['x'], metadata['y'], metadata['z']), color='red', radius=5))
+                    self.dots.append(self.create_dot((metadata['x'], metadata['y'], metadata['z']), color='red', radius=5, data=data))
 
     def initializeGL(self):
         glEnable(GL_DEPTH_TEST)
