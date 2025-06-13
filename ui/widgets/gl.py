@@ -16,24 +16,9 @@ from utils.helpers import open_image, delete_image
 from ui.dispatcher import dispatcher
 from utils import map
 
-class MapControllerWidget(QWidget):
-    def __init__(self, glWidget):
-        super().__init__()
-        self.glWidget = glWidget
-        layout = QHBoxLayout()
-        self.setLayout(layout)
-
-        self.buttonMap = QPushButton("Map")
-        self.buttonVisualTest = QPushButton("Model visual test")
-        self.buttonScreenshotDots = QPushButton("Screenshot density")
-
-        # Event handlers
-        self.buttonMap.clicked.connect(self.onMapClick)
-        self.buttonVisualTest.clicked.connect(self.onVisualTestClick)
-        self.buttonScreenshotDots.clicked.connect(self.onScreenshotDotsClick)
-
-        btnStyle = """
+btnStyle = """
             QPushButton {
+                min-width: 220px;
                 background-color: #303030;
                 color: white;
                 padding: 5px;
@@ -45,13 +30,45 @@ class MapControllerWidget(QWidget):
             }
         """
 
-        self.buttonMap.setStyleSheet(btnStyle)
-        self.buttonVisualTest.setStyleSheet(btnStyle)
-        self.buttonScreenshotDots.setStyleSheet(btnStyle)
+class MapControllerWidget(QWidget):
+    def __init__(self, glWidget):
+        super().__init__()
+        self.glWidget = glWidget
+        layout = QVBoxLayout()
+        self.setLayout(layout)
 
-        layout.addWidget(self.buttonMap)
-        layout.addWidget(self.buttonVisualTest)
-        layout.addWidget(self.buttonScreenshotDots)
+        h1_layout = QHBoxLayout()
+
+        h2_layout = QHBoxLayout()
+        layout.addLayout(h1_layout)
+        layout.addLayout(h2_layout)
+
+        self.btn_3dmap = QPushButton("3D Map")
+        self.btn_demo = QPushButton("Demo")
+
+        self.btn_map = QPushButton("Map")
+        self.btn_visual_test = QPushButton("Model visual test")
+        self.btn_screenshot_dots = QPushButton("Screenshot density")
+
+        # Event handlers
+        self.btn_map.clicked.connect(self.onMapClick)
+        self.btn_visual_test.clicked.connect(self.onVisualTestClick)
+        self.btn_screenshot_dots.clicked.connect(self.onScreenshotDotsClick)
+
+        self.btn_3dmap.setStyleSheet(btnStyle)
+        self.btn_demo.setStyleSheet(btnStyle)
+
+        self.btn_map.setStyleSheet(btnStyle)
+        self.btn_visual_test.setStyleSheet(btnStyle)
+        self.btn_screenshot_dots.setStyleSheet(btnStyle)
+
+        h1_layout.setAlignment(Qt.AlignLeft | Qt.AlignTop) 
+        h1_layout.addWidget(self.btn_3dmap)
+        h1_layout.addWidget(self.btn_demo)
+
+        h2_layout.addWidget(self.btn_map)
+        h2_layout.addWidget(self.btn_visual_test)
+        h2_layout.addWidget(self.btn_screenshot_dots)
         
     def onMapClick(self,):
         self.glWidget.clearElements()
@@ -64,6 +81,7 @@ class MapControllerWidget(QWidget):
 
 class GLWidget(QGLWidget):
     VISUAL_TEST_DIR = 'location/dataset/visualtest'
+    REAL_TEST_DIR = 'location/dataset/realtest'
     DATASET_TYPE = 'test'
 
     def __init__(self, parent=None):
@@ -144,14 +162,14 @@ class GLWidget(QGLWidget):
     def visualtest(self):
         self.clearElements()
 
-        root_dir = f'{self.VISUAL_TEST_DIR}/{self.currentMap}'
+        root_dir = f'{self.REAL_TEST_DIR}/{self.currentMap}'
 
         if os.path.exists(root_dir) is False:
             QMessageBox.critical(None, "Ошибка", f"Отсутвует директория с папкой {self.currentMap} по пути {root_dir}")
             return
 
         for filename in os.listdir(root_dir):
-            if filename.endswith(".jpg"):
+            if filename.lower().endswith(".jpg"):
                 expected = parse_filename(filename)
                 x, y, z, pitch, yaw = self.predictCoordinates(f"{root_dir}/{filename}")
 
@@ -255,38 +273,44 @@ class GLWidget(QGLWidget):
 
     def draw_dots(self):
         glDisable(GL_LIGHTING)
+        
+        # 1) Быстро рисуем все точки через GL_POINTS
+        glPointSize(3.0)  # размер точек (можно варьировать)
+        glBegin(GL_POINTS)
         for i, dot in enumerate(self.dots):
-            pos = dot["position"]
             color = parse_to_rgba(dot["color"])
+            glColor4fv(color)
+            pos = dot["position"]
+            glVertex3f(*pos)
+        glEnd()
+        
+        # 2) Выделяем выбранную точку более сложной геометрией
+        if self.selected_dot is not None and len(self.dots) > self.selected_dot:
+            dot = self.dots[self.selected_dot]
+            pos = dot["position"]
             radius = dot["radius"]
-            
-            # Рисуем выделение если точка выбрана
-            if dot["selected"]:
-                glPushMatrix()
-                glTranslatef(*pos)
-                glColor4f(1.0, 1.0, 0.0, 0.5)  # Желтое выделение
-                self.draw_sphere(radius * 1.5, 16, 16)
-                glPopMatrix()
-            
-            # Рисуем саму точку
             glPushMatrix()
             glTranslatef(*pos)
-            glColor4fv(color)
-            self.draw_sphere(radius, 16, 16)
+            glColor4f(1.0, 1.0, 0.0, 0.5)  # желтая полупрозрачная подсветка
+            self.draw_sphere(radius * 1.5, 8, 8)  # сфера с низкой детализацией
             glPopMatrix()
-            
-            # Подсветка при наведении
-            if self.hovered_dot == i:
-                glPushMatrix()
-                glTranslatef(*pos)
-                glColor4f(1.0, 1.0, 1.0, 0.3)  # Белая подсветка
-                self.draw_sphere(radius * 1.3, 16, 16)
-                glPopMatrix()
+        
+        # 3) Подсветка при наведении (если нужно)
+        if self.hovered_dot is not None and self.hovered_dot != self.selected_dot:
+            dot = self.dots[self.hovered_dot]
+            pos = dot["position"]
+            radius = dot["radius"]
+            glPushMatrix()
+            glTranslatef(*pos)
+            glColor4f(1.0, 1.0, 1.0, 0.3)  # белая подсветка
+            self.draw_sphere(radius * 1.3, 8, 8)
+            glPopMatrix()
         
         glEnable(GL_LIGHTING)
 
+
     def draw_selection_info(self):
-        if len(self.dots) and self.selected_dot is not None:
+        if self.selected_dot is not None and len(self.dots) > self.selected_dot:
             dot = self.dots[self.selected_dot]
 
             dot_data = dot['data']

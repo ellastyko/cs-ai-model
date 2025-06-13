@@ -50,8 +50,10 @@ class CS2Dataset(Dataset):
 
 # Парсинг названия файла
 def parse_filename(filename):
-    # Пример названия: "cs_italy -1 -1225 196 15 200 -0.261799 3.490659.jpg"
-    pattern = r"(.+?) (-?\d+) (-?\d+) (-?\d+) (-?\d+) (-?\d+) (-?[\d.]+) (-?[\d.]+)\.jpg"
+    # cs_italy -521 -1071 -164 -2.00 68.44 -0.261799 3.490659.JPG
+    pattern = r"^(.+?) (-?[\d.]+) (-?[\d.]+) (-?[\d.]+) (-?[\d.]+) (-?[\d.]+) (-?[\d.]+) (-?[\d.]+)\.(jpg|JPG)$"
+    # pattern = r"(.+?) (-?\d+) (-?\d+) (-?\d+) (-?\d+) (-?\d+) (-?[\d.]+) (-?[\d.]+)\.jpg$"
+
     match = re.match(pattern, filename)
     if match:
         return {

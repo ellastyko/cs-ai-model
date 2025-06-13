@@ -149,10 +149,14 @@ class SourceWidget(QFrame):
 
         self.add_source_btn = QPushButton("Add source")
         self.add_source_btn.setStyleSheet(btnStyle)
+        self.add_source_btn.clicked.connect(self.on_add_source)
 
         layout.addWidget(self.label_title, 1)
         layout.addWidget(LobbyWidget(), 8)
         layout.addWidget(self.add_source_btn, 1)
+
+    def on_add_source(self):
+        pass
 
 class LobbyWidget(QFrame):
     def __init__(self):
