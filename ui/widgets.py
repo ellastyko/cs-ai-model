@@ -1,6 +1,6 @@
 import os
 from PyQt5.QtOpenGL import QGLWidget
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QComboBox
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QComboBox, QFrame
 from PyQt5.QtCore import Qt, QPoint, pyqtSignal, QObject
 from PyQt5.QtGui import QPixmap
 from OpenGL.GL import *
@@ -28,32 +28,18 @@ class SidebarWidget(QWidget):
         self.setLayout(layout)
 
         self.locationPreveiwWidget = LocationPreviewWidget()
-        self.infoWidget            = InfoWidget()
+        self.settingsWidget = SettingsWidget()
+        self.lobbyWidget     = LobbyWidget()
 
-        layout.addWidget(self.locationPreveiwWidget, stretch=5)
-        layout.addWidget(self.infoWidget, stretch=5)
+        layout.addWidget(self.locationPreveiwWidget, stretch=3)
+        layout.addWidget(self.settingsWidget, stretch=3)
+        layout.addWidget(self.lobbyWidget, stretch=4)
 
-class InfoWidget(QWidget):
+class SettingsWidget(QFrame):
     def __init__(self):
         super().__init__()
         layout = QVBoxLayout()
         self.setLayout(layout)
-        self.setStyleSheet("""
-            border-radius: 5px;
-            background-color: #303030;
-            color: white;
-        """)
-        self.widget = QLabel("The label is created with the text 1.")  # The label is created with the text 1.
-        layout.addWidget(self.widget)
-
-class LocationPreviewWidget(QWidget):
-    def __init__(self):
-        super().__init__()
-        layout = QVBoxLayout()
-        self.setLayout(layout)
-
-        dispatcher.title_changed.connect(self.set_title)
-        dispatcher.image_changed.connect(self.set_image)
 
         self.setStyleSheet("""
             border-radius: 5px;
@@ -62,20 +48,78 @@ class LocationPreviewWidget(QWidget):
         """)
 
         # Создаем заголовок
+        self.title = QLabel("Settings")
+        self.title.setStyleSheet("""
+            font-size: 14px;
+            font-weight: bold;
+            background-color: #212121; 
+            padding: 5px;
+            margin-bottom: 10px;
+        """)
+        
+
+        self.title.setAlignment(Qt.AlignCenter)
+        layout.addWidget(self.title)
+
+class LobbyWidget(QFrame):
+    def __init__(self):
+        super().__init__()
+        layout = QVBoxLayout()
+        self.setLayout(layout)
+
+        self.setStyleSheet("""
+            border-radius: 5px;
+            background-color: #303030;
+            color: white;
+        """)
+
+        # Создаем заголовок
+        self.title = QLabel("Sources")
+        self.title.setStyleSheet("""
+            font-size: 14px;
+            font-weight: bold;
+            background-color: #212121; 
+            padding: 5px;
+            margin-bottom: 10px;
+        """)
+        self.title.setAlignment(Qt.AlignCenter)
+
+        self.buttonAddSource = QPushButton("Add source")
+
+        layout.addWidget(self.title)
+        layout.addWidget(self.buttonAddSource)
+
+class LocationPreviewWidget(QFrame):
+    def __init__(self):
+        super().__init__()
+        layout = QVBoxLayout()
+        self.setLayout(layout)
+
+        dispatcher.title_changed.connect(self.set_title)
+        dispatcher.image_changed.connect(self.set_image)
+
+            # Почему цвет фон добавился к двум  QLabel а не контейнеру. ПРостранство между QLabel не такого цвета как я указал для этого блока
+        self.setStyleSheet("""
+            border-radius: 5px;
+            background-color: #303030; 
+            color: white;
+        """)
+
+        # Создаем заголовок
         self.title_label = QLabel("Coordinates")
         self.title_label.setStyleSheet("""
             font-size: 14px;
             font-weight: bold;
+            background-color: #212121; 
             padding: 5px;
             margin-bottom: 10px;
         """)
         self.title_label.setAlignment(Qt.AlignCenter)
 
-
         # Создаем виджет для изображения
         self.image_label = QLabel()
         self.image_label.setAlignment(Qt.AlignCenter)
-        self.image_label.setStyleSheet("margin: 5px; padding: 5px;")
+        self.image_label.setStyleSheet("margin: 5px; padding: 5px; background-color: #212121;")
         self.set_image()
 
         layout.addWidget(self.title_label)
