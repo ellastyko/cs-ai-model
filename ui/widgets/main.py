@@ -16,7 +16,38 @@ from utils.helpers import open_image, delete_image
 from ui.widgets.gl import GLWidget
 from ui.widgets.videostream import VideoGLWidget
 from ui.widgets.controller import MapControllerWidget
+import cv2
 
+
+class Grabber:
+    type = "obs_vc"
+    device = None
+    cap_size_set = False
+
+    def obs_vc_init(self, capture_device = 0):
+        self.device = cv2.VideoCapture(capture_device)
+
+    def set_cap_size(self, w, h):
+        self.device.set(cv2.CAP_PROP_FRAME_WIDTH, w)
+        self.device.set(cv2.CAP_PROP_FRAME_HEIGHT, h)
+    
+    def release(self):
+        self.device.release()
+
+    def get_frame(self, grab_area):
+        """
+        Return last frame.
+        :return: numpy array
+        """
+        if not self.cap_size_set:
+            self.set_cap_size(grab_area['width'], grab_area['height'])
+            self.cap_size_set = True
+
+        ret, frame = self.device.read()
+        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+        return frame
+    
 class MainWidget(QWidget):
     def __init__(self):
         super().__init__()
@@ -37,7 +68,7 @@ class MainWidget(QWidget):
 
     def show_3d_scene(self):
         if self.video_widget:
-            self.video_widget.stop()
+            self.video_widget.closeEvent()
             self.view_stack.removeWidget(self.video_widget)
             self.video_widget.deleteLater()
             self.video_widget = None
@@ -56,7 +87,8 @@ class MainWidget(QWidget):
             self.gl_widget = None
 
         if self.video_widget is None:
-            self.video_widget = VideoGLWidget()
+            grabber = Grabber()
+            self.video_widget = VideoGLWidget(grabber)
             self.view_stack.addWidget(self.video_widget)
 
         self.view_stack.setCurrentWidget(self.video_widget)
