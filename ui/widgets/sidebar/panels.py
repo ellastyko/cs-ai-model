@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QComboBox, QFrame, QCheckBox
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QComboBox, QFrame, QCheckBox, QGroupBox
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QPixmap
 from utils import map
@@ -7,57 +7,10 @@ from utils.models import ModelManager
 from utils.helpers import open_image, delete_image
 from ui.dispatcher import dispatcher
 from utils.config import ConfigManager
-from configurator import config
 from pygrabber.dshow_graph import FilterGraph
+from .styles import *
 
-btnStyle = """
-            QPushButton {
-                background-color: #212121;
-                color: white;
-                padding: 5px;
-                font-size: 12px;
-                border-radius: 3px;
-            }
-            QPushButton:hover {
-                background-color: #45a049;
-            }
-        """
-cboxStyle = """
-            QComboBox {
-                background-color: #303030;
-                color: white;
-                padding: 5px;
-                font-size: 12px;
-                border-radius: 3px;
-            }
-            QComboBox:!editable:on, QComboBox::drop-down:editable:on {
-                color: white;
-            }   
-        """
-
-chboxStyle = """
-            QCheckBox {
-                padding: 3px;
-                color: white;
-            }
-        """
-
-class SidebarWidget(QWidget):
-    def __init__(self):
-        super().__init__()
-        layout = QVBoxLayout()
-        self.setLayout(layout)
-
-        self.locationPreveiwWidget = LocationPreviewWidget()
-        self.settingsWidget        = SettingsWidget()
-        self.sourceWidget          = SourceWidget()
-
-        layout.addWidget(self.locationPreveiwWidget, stretch=3)
-        layout.addWidget(self.settingsWidget, stretch=3)
-        layout.addWidget(self.sourceWidget, stretch=4)
-
-
-class SettingsWidget(QFrame):
+class SettingsPanel(QGroupBox):
     def __init__(self):
         super().__init__()
         layout = QVBoxLayout()
@@ -137,33 +90,7 @@ class SettingsWidget(QFrame):
         dispatcher.map_changed.emit(value)
         ConfigManager.set('last_opened_map', value)
 
-class SingleSourceWidget(QFrame):
-    def __init__(self):
-        super().__init__()
-
-        self.setStyleSheet("""
-            border-radius: 5px;
-            background-color: #212121;
-            color: white;
-        """)
-
-        layout = QHBoxLayout()
-        self.setLayout(layout)
-
-        cbox   = QComboBox()
-        chbox  = QCheckBox("Active")
-
-        layout.addWidget(chbox)
-        layout.addWidget(cbox)
-
-        graph = FilterGraph()
-
-        cbox.addItems(graph.get_input_devices())
-
-        # self.grabber.obs_vc_init(graph.get_input_devices().index(config["grabber"]["obs_vc_device_name"]))
-        
-
-class SourceWidget(QFrame):
+class SourcesPanel(QGroupBox):
     def __init__(self):
         super().__init__()
         layout = QVBoxLayout()
@@ -190,15 +117,15 @@ class SourceWidget(QFrame):
         self.add_source_btn.setStyleSheet(btnStyle)
         self.add_source_btn.clicked.connect(self.on_add_source)
 
-        self.lobbyWidget = LobbyWidget()
+        self.lobbyWidget = Lobby()
         layout.addWidget(self.label_title, 1)
         layout.addWidget(self.lobbyWidget, 8)
         layout.addWidget(self.add_source_btn, 1)
     
     def on_add_source(self):
-        self.lobbyWidget.add_source_item(SingleSourceWidget())
+        self.lobbyWidget.add_source_item(SingleSource())
 
-class LobbyWidget(QWidget):
+class Lobby(QWidget):
     def __init__(self):
         super().__init__()
         self.layout = QVBoxLayout()
@@ -214,7 +141,7 @@ class LobbyWidget(QWidget):
     def add_source_item(self, widget):
         self.layout.addWidget(widget)
 
-class LocationPreviewWidget(QFrame):
+class LocationPreviewPanel(QGroupBox):
     DEFAULT_IMG = 'assets/interface/no-img.png'
     DEFAULT_TEXT = 'Coordinates'
 
@@ -305,3 +232,29 @@ class LocationPreviewWidget(QFrame):
             self.image_label.setPixmap(scaled_pixmap)
         else:
             self.image_label.setText("Изображение не найдено")
+
+class SingleSource(QWidget):
+    def __init__(self):
+        super().__init__()
+
+        self.setStyleSheet("""
+            border-radius: 5px;
+            background-color: #212121;
+            color: white;
+        """)
+
+        layout = QHBoxLayout()
+        self.setLayout(layout)
+
+        cbox   = QComboBox()
+        chbox  = QCheckBox("Active")
+
+        layout.addWidget(chbox)
+        layout.addWidget(cbox)
+
+        graph = FilterGraph()
+
+        cbox.addItems(graph.get_input_devices())
+
+        # self.grabber.obs_vc_init(graph.get_input_devices().index(config["grabber"]["obs_vc_device_name"]))
+        

@@ -30,7 +30,7 @@ btnStyle = """
             }
         """
 
-class MapControllerWidget(QWidget):
+class MainControllerWidget(QWidget):
     _mode = '3dmap'
 
     def __init__(self, main_widget):
@@ -51,6 +51,8 @@ class MapControllerWidget(QWidget):
         self.btn_3dmap = QPushButton("3D Map")
         self.btn_videostream = QPushButton("Video Stream")
         self.btn_live_mode = QPushButton("Live mode")
+
+        # 3D Map secondary buttons
         self.btn_default_map_view = QPushButton("Default view")
         self.btn_visual_test = QPushButton("Model visual test")
         self.btn_screenshot_density = QPushButton("Screenshot density")
@@ -89,6 +91,6 @@ class MapControllerWidget(QWidget):
         elif mode == 'videostream':
             self.main_widget.show_video_stream()
         elif mode == 'livemode':
-            pass
+            self.main_widget.show_live_mode()
         
         self._mode = mode

@@ -13,9 +13,9 @@ from PIL import Image
 from transformers import ViTImageProcessor
 from utils.models import ModelManager
 from utils.helpers import open_image, delete_image
-from ui.widgets.gl import GLWidget
-from ui.widgets.videostream import VideoGLWidget
-from ui.widgets.controller import MapControllerWidget
+from .gl import GLWidget
+from .videostream import VideoGLWidget
+from .controllers import MainControllerWidget
 import cv2
 
 class Grabber:
@@ -52,7 +52,7 @@ class MainWidget(QWidget):
         layout = QVBoxLayout()
         self.setLayout(layout)
 
-        self.controller = MapControllerWidget(self)
+        self.controller = MainControllerWidget(self)
         self.view_stack = QStackedLayout()
 
         layout.addWidget(self.controller, stretch=1)
@@ -77,6 +77,20 @@ class MainWidget(QWidget):
         self.view_stack.setCurrentWidget(self.gl_widget)
 
     def show_video_stream(self):
+        if self.gl_widget:
+            self.gl_widget.cleanup()
+            self.view_stack.removeWidget(self.gl_widget)
+            self.gl_widget.deleteLater()
+            self.gl_widget = None
+
+        if self.video_widget is None:
+            grabber = Grabber()
+            self.video_widget = VideoGLWidget(grabber)
+            self.view_stack.addWidget(self.video_widget)
+
+        self.view_stack.setCurrentWidget(self.video_widget)
+
+    def show_live_mode(self):
         if self.gl_widget:
             self.gl_widget.cleanup()
             self.view_stack.removeWidget(self.gl_widget)

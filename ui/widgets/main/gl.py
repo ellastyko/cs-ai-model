@@ -250,7 +250,6 @@ class GLWidget(QGLWidget):
         
         glEnable(GL_LIGHTING)
 
-
     def draw_selection_info(self):
         if self.selected_dot is not None and len(self.dots) > self.selected_dot:
             dot = self.dots[self.selected_dot]

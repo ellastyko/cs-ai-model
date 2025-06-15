@@ -13,7 +13,6 @@ def get_game_windows_rect():
     except Exception as e:
         logging.error(f'Cannot grab window rect with name "{config["grabber"]["window_title"]}"')
         logging.error(e)
-
     return game_window_rect
 
 # === QOpenGLWidget for displaying frames ===
