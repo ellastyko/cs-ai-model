@@ -1,9 +1,7 @@
 from pygrabber.dshow_graph import FilterGraph
 from utils.win32 import WinHelper
-import sys
-import cv2
-import numpy as np
-from PyQt5.QtWidgets import QApplication, QOpenGLWidget
+from utils.cv2 import round_to_multiple
+from PyQt5.QtWidgets import QOpenGLWidget
 from PyQt5.QtCore import QTimer, QRect
 from PyQt5.QtGui import QImage, QPainter
 from configurator import config
@@ -27,10 +25,8 @@ class VideoGLWidget(QOpenGLWidget):
 
         self.timer = QTimer()
         self.timer.timeout.connect(self.update_frame)
-        self.timer.start(30)  # ~33 FPS
+        self.timer.start(30) 
         graph = FilterGraph()
-
-        print(graph.get_input_devices().index(config["grabber"]["obs_vc_device_name"]))
 
         self.grabber.obs_vc_init(graph.get_input_devices().index(config["grabber"]["obs_vc_device_name"]))
 
@@ -83,7 +79,7 @@ class VideoGLWidget(QOpenGLWidget):
             painter = QPainter(self)
             painter.drawImage(
                 QRect(x, y, scaled_width, scaled_height),
-                img.scaled(scaled_width, scaled_height, aspectRatioMode=1)  # Qt.KeepAspectRatio
+                img.scaled(scaled_width, scaled_height, aspectRatioMode=1) 
             )
             painter.end()
 
@@ -91,5 +87,6 @@ class VideoGLWidget(QOpenGLWidget):
         # TODO: вставь сюда свою обработку нейросетью (OpenCV, Torch, TensorFlow и т.д.)
         return frame
 
-    def closeEvent(self,):
+    def closeEvent(self, event):
         self.grabber.release()
+        super().closeEvent(event)

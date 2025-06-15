@@ -1,5 +1,4 @@
 import cv2
-import numpy
 
 def list_ports():
     """
@@ -106,13 +105,8 @@ def filter_rectangles(rect_list: list) -> list:
 
 
 def point_get_difference(source_point, dest_point):
-    # 1000, 1000
-    # source_point = (960, 540)
-    # dest_point = (833, 645)
-    # result = (100, 100)
-
-    x = dest_point[0]-source_point[0]
-    y = dest_point[1]-source_point[1]
+    x = dest_point[0] - source_point[0]
+    y = dest_point[1] - source_point[1]
 
     return x, y
 

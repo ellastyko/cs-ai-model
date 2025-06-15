@@ -1,15 +1,8 @@
-import os
-from PyQt5.QtOpenGL import QGLWidget
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QComboBox, QFrame, QCheckBox
-from PyQt5.QtCore import Qt, QPoint, pyqtSignal, QObject
+from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QPixmap
 from utils import map
-from utils.colors import parse_to_rgba
-from location.utils.dataset import parse_filename
 from PyQt5.QtWidgets import QPushButton, QLabel
-import torch
-from PIL import Image
-from transformers import ViTImageProcessor
 from utils.models import ModelManager
 from utils.helpers import open_image, delete_image
 from ui.dispatcher import dispatcher

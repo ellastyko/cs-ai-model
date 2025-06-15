@@ -20,7 +20,6 @@ import cv2
 
 
 class Grabber:
-    type = "obs_vc"
     device = None
     cap_size_set = False
 
@@ -94,8 +93,8 @@ class MainWidget(QWidget):
         self.view_stack.setCurrentWidget(self.video_widget)
 
     def closeEvent(self, event):
-        # if self.video_processor:
-        #     self.video_processor.stop()
+        if self.video_widget:
+            self.video_widget.closeEvent(event)
         if self.gl_widget:
             self.gl_widget.cleanup()
         event.accept()

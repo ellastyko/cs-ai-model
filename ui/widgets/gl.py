@@ -19,7 +19,7 @@ from utils import map
 class GLWidget(QGLWidget):
     VISUAL_TEST_DIR = 'location/dataset/visualtest'
     REAL_TEST_DIR = 'location/dataset/realtest'
-    DATASET_TYPE = 'test'
+    DATASET_TYPE = 'train'
 
     def __init__(self, parent=None):
         super().__init__(parent)
