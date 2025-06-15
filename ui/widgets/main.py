@@ -18,7 +18,6 @@ from ui.widgets.videostream import VideoGLWidget
 from ui.widgets.controller import MapControllerWidget
 import cv2
 
-
 class Grabber:
     device = None
     cap_size_set = False
@@ -67,7 +66,6 @@ class MainWidget(QWidget):
 
     def show_3d_scene(self):
         if self.video_widget:
-            self.video_widget.closeEvent()
             self.view_stack.removeWidget(self.video_widget)
             self.video_widget.deleteLater()
             self.video_widget = None

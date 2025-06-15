@@ -1,20 +1,18 @@
 import os
 from PyQt5.QtOpenGL import QGLWidget
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QComboBox, QFrame, QMessageBox, QStackedWidget
-from PyQt5.QtCore import Qt, QPoint, pyqtSignal, QObject
-from PyQt5.QtGui import QPixmap
+from PyQt5.QtWidgets import QMessageBox
+from PyQt5.QtCore import Qt, QPoint
 from OpenGL.GL import *
 from OpenGL.GLU import *
 from utils.colors import parse_to_rgba
 from location.utils.dataset import parse_filename
-from PyQt5.QtWidgets import QPushButton, QLabel
 import torch
 from PIL import Image
 from transformers import ViTImageProcessor
 from utils.models import ModelManager
-from utils.helpers import open_image, delete_image
 from ui.dispatcher import dispatcher
 from utils import map
+from utils.config import ConfigManager
 
 class GLWidget(QGLWidget):
     VISUAL_TEST_DIR = 'location/dataset/visualtest'
@@ -27,7 +25,7 @@ class GLWidget(QGLWidget):
         dispatcher.map_mode.connect(self.set_mode)
         dispatcher.map_changed.connect(self.upload_map)
 
-        self.upload_map('cs_italy')
+        self.upload_map(ConfigManager.get('last_opened_map') or ModelManager.list()[-1])
         # Загрузка и подготовка изображения
         self.processor = ViTImageProcessor.from_pretrained("google/vit-base-patch16-224")
         self.last_pos = QPoint()

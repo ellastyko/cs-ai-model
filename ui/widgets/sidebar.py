@@ -7,6 +7,8 @@ from utils.models import ModelManager
 from utils.helpers import open_image, delete_image
 from ui.dispatcher import dispatcher
 from utils.config import ConfigManager
+from configurator import config
+from pygrabber.dshow_graph import FilterGraph
 
 btnStyle = """
             QPushButton {
@@ -61,8 +63,6 @@ class SettingsWidget(QFrame):
         layout = QVBoxLayout()
         self.setLayout(layout)
 
-        inner_layout = QVBoxLayout()
-
         self.setStyleSheet("""
             border-radius: 5px;
             background-color: #303030;
@@ -100,21 +100,23 @@ class SettingsWidget(QFrame):
         if nmodel is None:
             nmodel = ModelManager.list()[-1] 
             ConfigManager.set('neural_model', nmodel)
+        
+        self.cbox_model.setCurrentText(nmodel)
 
         if lomap is None:
             lomap = map.get_map_list()[0]
             ConfigManager.set('last_opened_map', lomap)
 
-        # Set default values
-        self.cbox_model_update(nmodel)
-        self.cbox_map_update(lomap)
+        self.cbox_model.setCurrentText(nmodel)
+        self.cbox_map.setCurrentText(lomap)
 
+        # Set default values
         self.cbox_model.currentTextChanged.connect(self.cbox_model_update)
         self.cbox_map.currentTextChanged.connect(self.cbox_map_update)
+
         self.cbox_model.setStyleSheet(cboxStyle)
         self.cbox_map.setStyleSheet(cboxStyle)
         self.cbox_path_scripts.setStyleSheet(cboxStyle)
-
         self.chbox_buildings_visibility.setStyleSheet(chboxStyle)
         self.chbox_path_graph.setStyleSheet(chboxStyle)
 
@@ -134,6 +136,32 @@ class SettingsWidget(QFrame):
     def cbox_map_update(self, value):
         dispatcher.map_changed.emit(value)
         ConfigManager.set('last_opened_map', value)
+
+class SingleSourceWidget(QFrame):
+    def __init__(self):
+        super().__init__()
+
+        self.setStyleSheet("""
+            border-radius: 5px;
+            background-color: #212121;
+            color: white;
+        """)
+
+        layout = QHBoxLayout()
+        self.setLayout(layout)
+
+        cbox   = QComboBox()
+        chbox  = QCheckBox("Active")
+
+        layout.addWidget(chbox)
+        layout.addWidget(cbox)
+
+        graph = FilterGraph()
+
+        cbox.addItems(graph.get_input_devices())
+
+        # self.grabber.obs_vc_init(graph.get_input_devices().index(config["grabber"]["obs_vc_device_name"]))
+        
 
 class SourceWidget(QFrame):
     def __init__(self):
@@ -162,27 +190,32 @@ class SourceWidget(QFrame):
         self.add_source_btn.setStyleSheet(btnStyle)
         self.add_source_btn.clicked.connect(self.on_add_source)
 
+        self.lobbyWidget = LobbyWidget()
         layout.addWidget(self.label_title, 1)
-        layout.addWidget(LobbyWidget(), 8)
+        layout.addWidget(self.lobbyWidget, 8)
         layout.addWidget(self.add_source_btn, 1)
-
+    
     def on_add_source(self):
-        pass
+        self.lobbyWidget.add_source_item(SingleSourceWidget())
 
-class LobbyWidget(QFrame):
+class LobbyWidget(QWidget):
     def __init__(self):
         super().__init__()
-        layout = QVBoxLayout()
-        self.setLayout(layout)
+        self.layout = QVBoxLayout()
+        self.layout.setAlignment(Qt.AlignLeft | Qt.AlignTop) 
+        self.setLayout(self.layout)
 
         self.setStyleSheet("""
             border-radius: 5px;
-            background-color: #212121;
+            background-color: #212121; 
             color: white;
         """)
 
+    def add_source_item(self, widget):
+        self.layout.addWidget(widget)
+
 class LocationPreviewWidget(QFrame):
-    DEFAULT_IMG = 'assets/no-img.png'
+    DEFAULT_IMG = 'assets/interface/no-img.png'
     DEFAULT_TEXT = 'Coordinates'
 
     def __init__(self):
