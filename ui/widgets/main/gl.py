@@ -104,7 +104,7 @@ class GLWidget(QGLWidget):
     def visualtest(self):
         self.clearElements()
 
-        root_dir = f'{self.REAL_TEST_DIR}/{self.currentMap}'
+        root_dir = f'{self.VISUAL_TEST_DIR}/{self.currentMap}'
 
         if os.path.exists(root_dir) is False:
             QMessageBox.critical(None, "Ошибка", f"Отсутвует директория с папкой {self.currentMap} по пути {root_dir}")

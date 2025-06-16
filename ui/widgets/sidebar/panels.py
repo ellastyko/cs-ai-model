@@ -47,14 +47,16 @@ class SettingsPanel(QGroupBox):
         for mapname in map.get_map_list():
             self.cbox_map.addItem(mapname)
 
+        # Set default values
+        self.cbox_model.currentTextChanged.connect(self.cbox_model_update)
+        self.cbox_map.currentTextChanged.connect(self.cbox_map_update)
+        
         nmodel = ConfigManager.get('neural_model')
         lomap  = ConfigManager.get('last_opened_map')
 
         if nmodel is None:
             nmodel = ModelManager.list()[-1] 
             ConfigManager.set('neural_model', nmodel)
-        
-        self.cbox_model.setCurrentText(nmodel)
 
         if lomap is None:
             lomap = map.get_map_list()[0]
@@ -63,9 +65,7 @@ class SettingsPanel(QGroupBox):
         self.cbox_model.setCurrentText(nmodel)
         self.cbox_map.setCurrentText(lomap)
 
-        # Set default values
-        self.cbox_model.currentTextChanged.connect(self.cbox_model_update)
-        self.cbox_map.currentTextChanged.connect(self.cbox_map_update)
+        ModelManager.switchModel(nmodel)
 
         self.cbox_model.setStyleSheet(cboxStyle)
         self.cbox_map.setStyleSheet(cboxStyle)
