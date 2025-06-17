@@ -22,10 +22,10 @@ class GLWidget(QGLWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
 
-        dispatcher.map_mode.connect(self.set_mode)
+        dispatcher.GLMAP_MODE.connect(self.set_mode)
         dispatcher.map_changed.connect(self.upload_map)
 
-        self.upload_map(ConfigManager.get('last_opened_map') or ModelManager.list()[-1])
+        self.upload_map(ConfigManager.get('last_opened_map') or map.get_map_list()[0])
         # Загрузка и подготовка изображения
         self.processor = ViTImageProcessor.from_pretrained("google/vit-base-patch16-224")
         self.last_pos = QPoint()
@@ -40,6 +40,8 @@ class GLWidget(QGLWidget):
     def set_mode(self, mode):
         if mode == 'default_map_view':
             self.upload_map(self.currentMap)
+        elif mode == 'zones':
+            self.zones()
         elif mode == 'visual_test':
             self.visualtest()
         elif mode == 'screenshot_density':
@@ -56,7 +58,7 @@ class GLWidget(QGLWidget):
         self.rotate_x, self.rotate_z = view['rotation']['x'], view['rotation']['z']
         self.zoom = view['camera']['zoom']
 
-        groups = mapdata['groups']
+        groups = mapdata['objects']
 
         self.clearElements()
         self.clearMap()
@@ -75,6 +77,9 @@ class GLWidget(QGLWidget):
                 self.prisms.append(((el['x'], el['y'], el['z']), (el['width'], el['length'], el['height']), color))
         
         self.update()
+
+    def zones(self):
+        pass 
 
     def predictCoordinates(self, img_path):
         self.model, _ = ModelManager.getCurrentModel()

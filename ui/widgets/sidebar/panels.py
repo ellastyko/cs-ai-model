@@ -55,17 +55,18 @@ class SettingsPanel(QGroupBox):
         lomap  = ConfigManager.get('last_opened_map')
 
         if nmodel is None:
-            nmodel = ModelManager.list()[-1] 
-            ConfigManager.set('neural_model', nmodel)
+            nmodels = ModelManager.list() 
+            if len(nmodels): ConfigManager.set('neural_model', nmodels[0])
 
         if lomap is None:
-            lomap = map.get_map_list()[0]
-            ConfigManager.set('last_opened_map', lomap)
+            lomaps = map.get_map_list()
+            if len(lomaps): ConfigManager.set('last_opened_map', lomaps[0])
+
 
         self.cbox_model.setCurrentText(nmodel)
         self.cbox_map.setCurrentText(lomap)
 
-        ModelManager.switchModel(nmodel)
+        # ModelManager.switchModel(nmodel)
 
         self.cbox_model.setStyleSheet(cboxStyle)
         self.cbox_map.setStyleSheet(cboxStyle)

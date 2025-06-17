@@ -1,96 +1,151 @@
 import os
-from PyQt5.QtOpenGL import QGLWidget
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QComboBox, QFrame, QMessageBox
-from PyQt5.QtCore import Qt, QPoint, pyqtSignal, QObject
-from PyQt5.QtGui import QPixmap
-from OpenGL.GL import *
-from OpenGL.GLU import *
-from utils.colors import parse_to_rgba
-from location.utils.dataset import parse_filename
-from PyQt5.QtWidgets import QPushButton, QLabel
-import torch
-from PIL import Image
-from transformers import ViTImageProcessor
-from utils.models import ModelManager
-from utils.helpers import open_image, delete_image
+from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton, 
+                            QStackedWidget, QButtonGroup)
+from PyQt5.QtCore import Qt
 from ui.dispatcher import dispatcher
-from utils import map
 
 btnStyle = """
-            QPushButton {
-                min-width: 220px;
-                background-color: #303030;
-                color: white;
-                padding: 5px;
-                font-size: 12px;
-                border-radius: 5px;
-            }
-            QPushButton:hover {
-                background-color: #45a049;
-            }
-        """
+    QPushButton {
+        width: 200px;
+        background-color: #303030;
+        color: white;
+        padding: 5px;
+        font-size: 12px;
+        border-radius: 5px;
+    }
+    QPushButton:hover {
+        background-color: #45a049;
+    }
+    QPushButton:checked {
+        background-color: #2a82da;
+    }
+"""
 
 class MainControllerWidget(QWidget):
-    _mode = '3dmap'
-
     def __init__(self, main_widget):
         super().__init__()
         self.main_widget = main_widget
         self._init_ui()
         
     def _init_ui(self):
-        vlayout = QVBoxLayout()
-        self.setLayout(vlayout)
+        self.layout = QVBoxLayout()
+        self.setLayout(self.layout)
 
-        main_layout_line = QHBoxLayout()
-        secondary_layout_line = QHBoxLayout()
+        # Основные кнопки режимов
+        self.mode_buttons_layout = QHBoxLayout()
+        self.layout.addLayout(self.mode_buttons_layout)
 
-        vlayout.addLayout(main_layout_line)
-        vlayout.addLayout(secondary_layout_line)
+        # Создаем группу для основных кнопок (работают как радио-кнопки)
+        self.mode_button_group = QButtonGroup(self)
+        self.mode_button_group.setExclusive(True)
 
-        self.btn_3dmap = QPushButton("3D Map")
-        self.btn_videostream = QPushButton("Video Stream")
-        self.btn_live_mode = QPushButton("Live mode")
+        # Основные кнопки
+        self.btn_3dmap = self._create_mode_button("3D Map", '3dmap')
+        self.btn_videostream = self._create_mode_button("Video Stream", 'videostream')
+        self.btn_live_mode = self._create_mode_button("Live mode", 'livemode')
 
-        # 3D Map secondary buttons
-        self.btn_default_map_view = QPushButton("Default view")
-        self.btn_visual_test = QPushButton("Model visual test")
-        self.btn_screenshot_density = QPushButton("Screenshot density")
+        # Добавляем кнопки в группу и layout
+        for i, btn in enumerate([self.btn_3dmap, self.btn_videostream, self.btn_live_mode]):
+            self.mode_button_group.addButton(btn, i)
+            self.mode_buttons_layout.addWidget(btn)
 
-        # Event handlers
-        self.btn_3dmap.clicked.connect(lambda: self.set_mode('3dmap'))
-        self.btn_videostream.clicked.connect(lambda: self.set_mode('videostream'))
-        self.btn_live_mode.clicked.connect(lambda: self.set_mode('livemode'))
-        self.btn_default_map_view.clicked.connect(lambda: dispatcher.map_mode.emit('default_map_view'))
-        self.btn_visual_test.clicked.connect(lambda: dispatcher.map_mode.emit('visual_test'))
-        self.btn_screenshot_density.clicked.connect(lambda: dispatcher.map_mode.emit('screenshot_density'))
+        # StackedWidget для второстепенных кнопок
+        self.secondary_buttons_stack = QStackedWidget()
+        self.layout.addWidget(self.secondary_buttons_stack)
 
-        # Активный стиль
-        self.active_style = "background-color: #2a82da;"
+        # Создаем страницы с кнопками для каждого режима
+        self._create_3dmap_buttons()
+        self._create_videostream_buttons()
+        self._create_livemode_buttons()
 
-        # Stylesheet
-        self.btn_3dmap.setStyleSheet(btnStyle)
-        self.btn_videostream.setStyleSheet(btnStyle)
-        self.btn_live_mode.setStyleSheet(btnStyle)
-        self.btn_default_map_view.setStyleSheet(btnStyle)
-        self.btn_visual_test.setStyleSheet(btnStyle)
-        self.btn_screenshot_density.setStyleSheet(btnStyle)
+        # Устанавливаем начальный режим
+        self.btn_3dmap.setChecked(True)
+        self._update_secondary_buttons('3dmap')
 
-        main_layout_line.setAlignment(Qt.AlignLeft | Qt.AlignTop) 
-        main_layout_line.addWidget(self.btn_3dmap)
-        main_layout_line.addWidget(self.btn_videostream)
-        main_layout_line.addWidget(self.btn_live_mode)
-
-        secondary_layout_line.addWidget(self.btn_default_map_view)
-        secondary_layout_line.addWidget(self.btn_visual_test)
-        secondary_layout_line.addWidget(self.btn_screenshot_density)
+        # Подключаем обработчик изменения режима
+        self.mode_button_group.buttonClicked.connect(self._on_mode_changed)
     
-    def set_mode(self, mode):
+    def _create_mode_button(self, text, mode):
+        btn = QPushButton(text)
+        btn.setCheckable(True)
+        btn.setStyleSheet(btnStyle)
+        btn.mode = mode  # Сохраняем режим как свойство кнопки
+        return btn
+    
+    def _create_3dmap_buttons(self):
+        """Создает панель кнопок для режима 3D карты"""
+        panel = QWidget()
+        layout = QHBoxLayout(panel)
+        
+        buttons = [
+            ("Default view", lambda: dispatcher.GLMAP_MODE.emit('default_map_view')),
+            ("Zones", lambda: dispatcher.GLMAP_MODE.emit('zones')),
+            ("Model visual test", lambda: dispatcher.GLMAP_MODE.emit('visual_test')),
+            ("Screenshot density", lambda: dispatcher.GLMAP_MODE.emit('screenshot_density'))
+        ]
+        
+        for text, handler in buttons:
+            btn = QPushButton(text)
+            btn.setStyleSheet(btnStyle)
+            btn.clicked.connect(handler)
+            layout.addWidget(btn)
+        
+        self.secondary_buttons_stack.addWidget(panel)
+    
+    def _create_videostream_buttons(self):
+        """Создает панель кнопок для режима видеопотока"""
+        panel = QWidget()
+        layout = QHBoxLayout(panel)
+        
+        buttons = [
+            ("Default", lambda: dispatcher.VIDEOSTREAM_MODE.emit('default')),
+            ("With Neuron Model", lambda: dispatcher.VIDEOSTREAM_MODE.emit('with_nmodel'))
+        ]
+        
+        for text, handler in buttons:
+            btn = QPushButton(text)
+            btn.setStyleSheet(btnStyle)
+            btn.clicked.connect(handler)
+            layout.addWidget(btn)
+        
+        self.secondary_buttons_stack.addWidget(panel)
+    
+    def _create_livemode_buttons(self):
+        """Создает панель кнопок для live режима"""
+        panel = QWidget()
+        layout = QHBoxLayout(panel)
+        
+        buttons = [
+            ("Sessions", lambda: dispatcher.LIVE_MODE.emit('sessions')),
+            ("Logs", lambda: dispatcher.LIVE_MODE.emit('logs')),
+        ]
+        
+        for text, handler in buttons:
+            btn = QPushButton(text)
+            btn.setStyleSheet(btnStyle)
+            btn.clicked.connect(handler)
+            layout.addWidget(btn)
+        
+        self.secondary_buttons_stack.addWidget(panel)
+    
+    def _on_mode_changed(self, button):
+        """Обработчик изменения основного режима"""
+        mode = button.mode
+        self._update_secondary_buttons(mode)
+        
+        # Обновляем главный виджет
         if mode == '3dmap':
             self.main_widget.show_3d_scene()
         elif mode == 'videostream':
             self.main_widget.show_video_stream()
         elif mode == 'livemode':
             self.main_widget.show_live_mode()
-        
-        self._mode = mode
+    
+    def _update_secondary_buttons(self, mode):
+        """Обновляет видимые второстепенные кнопки в соответствии с режимом"""
+        if mode == '3dmap':
+            self.secondary_buttons_stack.setCurrentIndex(0)
+        elif mode == 'videostream':
+            self.secondary_buttons_stack.setCurrentIndex(1)
+        elif mode == 'livemode':
+            self.secondary_buttons_stack.setCurrentIndex(2)
