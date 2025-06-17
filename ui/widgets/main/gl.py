@@ -5,29 +5,42 @@ from PyQt5.QtCore import Qt, QPoint
 from OpenGL.GL import *
 from OpenGL.GLU import *
 from utils.colors import parse_to_rgba
-from location.utils.dataset import parse_filename
+from ai.location.utils.dataset import parse_filename
 import torch
 from PIL import Image
-from transformers import ViTImageProcessor
 from utils.models import ModelManager
 from ui.dispatcher import dispatcher
-from utils import map
+from utils.map import MapManager
 from utils.config import ConfigManager
 
 class GLWidget(QGLWidget):
-    VISUAL_TEST_DIR = 'location/dataset/visualtest'
-    REAL_TEST_DIR = 'location/dataset/realtest'
+    VISUAL_TEST_DIR = 'ai/location/dataset/visualtest'
+    REAL_TEST_DIR = 'ai/location/dataset/realtest'
     DATASET_TYPE = 'train'
+
+    to_display = ['objects']
+
+    objects_3d    = []
+    zone_polygons = []
+
+    dots = []
+    connections = []
+    selected_dot = None
+    hovered_dot = None
+    selected_dot = None  
+    info_text = ""
 
     def __init__(self, parent=None):
         super().__init__(parent)
 
         dispatcher.GLMAP_MODE.connect(self.set_mode)
-        dispatcher.map_changed.connect(self.upload_map)
+        dispatcher.map_changed.connect(self.map_changed)
 
-        self.upload_map(ConfigManager.get('last_opened_map') or map.get_map_list()[0])
+        self.upload_map(ConfigManager.get('last_opened_map') or MapManager.get_available_maps()[0])
+
+        self.set_objects()
+
         # Загрузка и подготовка изображения
-        self.processor = ViTImageProcessor.from_pretrained("google/vit-base-patch16-224")
         self.last_pos = QPoint()
     
     def _init_ui(self):
@@ -39,75 +52,86 @@ class GLWidget(QGLWidget):
 
     def set_mode(self, mode):
         if mode == 'default_map_view':
-            self.upload_map(self.currentMap)
+            self.set_objects()
         elif mode == 'zones':
-            self.zones()
+            self.set_zones()
         elif mode == 'visual_test':
             self.visualtest()
         elif mode == 'screenshot_density':
             self.visualiseScreenshots()
     
+    def map_changed(self, mapname):
+        # Map change handler
+        if self.currentMap != mapname or self.mapdata is None:
+            self.upload_map(mapname)
+        
+        self.set_map()
+    
     def upload_map(self, mapname):
-        self.currentMap = mapname
+        # Set map data
+        self.currentMap, self.mapdata = mapname, MapManager.get_map(mapname)
+        self.set_viewpoint()
 
-        mapdata = map.get_map_resources(self.currentMap)
+    def set_map(self):
+        # Clear old data
+        self.set_viewpoint()
+        self.clear_3d_objects()
+        self.clear_dots_data()
 
-        view = mapdata['view']
-
+        if 'objects' in self.to_display:
+            self.set_objects()
+        
+        if 'zones' in self.to_display:
+            self.set_zones()
+    
+    def set_viewpoint(self):
+        # Update map viewpoint
+        view = self.mapdata['view']
         self.camera_pos = view['camera']['position']
         self.rotate_x, self.rotate_z = view['rotation']['x'], view['rotation']['z']
         self.zoom = view['camera']['zoom']
 
-        groups = mapdata['objects']
+    def set_objects(self, groups = '*'):
+        # Set 3D objects that has xyz & width, length, height params
+        objects = self.mapdata['objects']
 
-        self.clearElements()
-        self.clearMap()
+        for oname in objects:
+            color = objects[oname]['color']
+            elements = objects[oname]['elements']
 
-        self.selected_dot = None
-        self.hovered_dot = None
-        self.info_text = ""
-        self.selected_dot = None  # Индекс выбранного кружочка
-        self.drag_start_pos = None  # Начальная позиция при перетаскивании
-
-        for group_name in groups:
-            color = groups[group_name]['color']
-            elements = groups[group_name]['elements']
+            # Filter object groups
+            if oname not in groups and groups != '*':
+                continue
 
             for el in elements:
-                self.prisms.append(((el['x'], el['y'], el['z']), (el['width'], el['length'], el['height']), color))
-        
-        self.update()
+                self.objects_3d.append(((el['x'], el['y'], el['z']), (el['width'], el['length'], el['height']), color))
 
-    def zones(self):
-        pass 
+    def set_zones(self):
+        # Fill data 
+        self.clear_dots_data()
+        self.clear_3d_objects()
+        self.clear_zone_polygons()
 
-    def predictCoordinates(self, img_path):
-        self.model, _ = ModelManager.getCurrentModel()
-
-        # Predict coordinates with image
-        image = Image.open(img_path)
-
-        inputs = self.processor(images=image, return_tensors="pt")
-
-        with torch.no_grad():
-            pixel_values = inputs["pixel_values"].to("cuda")
-            outputs = self.model({"pixel_values": pixel_values})
-            predicted_coords = outputs.squeeze().tolist()
-
-            return predicted_coords[0], predicted_coords[1], predicted_coords[2], predicted_coords[3], predicted_coords[4]
+        self.zone_polygons = []
     
-    def clearElements(self):
+    def clear_dots_data(self):
         # Reset all dots and connections
         self.dots = []
         self.connections = []
         self.dots_data = []
+        self.selected_dot = None
+        self.hovered_dot = None
+        self.selected_dot = None  
+        self.info_text = ""
 
-    def clearMap(self,):
-        # remove polygons
-        self.prisms = []
+    def clear_3d_objects(self):
+        self.objects_3d = []
+    
+    def clear_zone_polygons(self):
+        self.zone_polygons = []
 
     def visualtest(self):
-        self.clearElements()
+        self.clear_dots_data()
 
         root_dir = f'{self.VISUAL_TEST_DIR}/{self.currentMap}'
 
@@ -148,7 +172,7 @@ class GLWidget(QGLWidget):
         self.update()
 
     def visualiseScreenshots(self):
-        dir = f'location/dataset/{self.DATASET_TYPE}/{self.currentMap}'
+        dir = f'ai/location/dataset/{self.DATASET_TYPE}/{self.currentMap}'
 
         # Собираем все изображения
         for filename in os.listdir(dir):
@@ -204,7 +228,7 @@ class GLWidget(QGLWidget):
         self.draw_axes(1500)
 
         # Отрисовка призм
-        for center, size, color in self.prisms:
+        for center, size, color in self.objects_3d:
             self.draw_prism(center, size, color)
 
         # Отрисовка соединений между кружочками
@@ -456,7 +480,6 @@ class GLWidget(QGLWidget):
             pos, color, radius, _ = self.dots[closest_dot]
             self.dots[closest_dot] = (pos, color, radius, True)
             self.selected_dot = closest_dot
-            self.drag_start_pos = event.pos()
         else:
             # Если кликнули в пустое место - снимаем выделение
             if self.selected_dot is not None:

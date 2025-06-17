@@ -1,7 +1,7 @@
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QComboBox, QFrame, QCheckBox, QGroupBox
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QPixmap
-from utils import map
+from utils.map import MapManager
 from PyQt5.QtWidgets import QPushButton, QLabel
 from utils.models import ModelManager
 from utils.helpers import open_image, delete_image
@@ -44,7 +44,7 @@ class SettingsPanel(QGroupBox):
         for filename in ModelManager.list():
             self.cbox_model.addItem(filename)
         
-        for mapname in map.get_map_list():
+        for mapname in MapManager.get_available_maps():
             self.cbox_map.addItem(mapname)
 
         # Set default values

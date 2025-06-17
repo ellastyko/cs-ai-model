@@ -3,7 +3,7 @@ import torch
 from torch.utils.data import Dataset
 from utils.dataset import CS2Dataset
 import matplotlib.pyplot as plt
-from transformers import ViTImageProcessor  # Замена устаревшего ViTFeatureExtractor
+from transformers import ViTImageProcessor 
 import torch.nn as nn
 from torch.optim import AdamW, lr_scheduler
 from torch.utils.data import DataLoader

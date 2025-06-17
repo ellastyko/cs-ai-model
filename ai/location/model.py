@@ -11,3 +11,4 @@ class ViTRegression(nn.Module):
         outputs = self.vit(**x)
         cls_token = outputs.last_hidden_state[:, 0, :]  # [CLS] токен
         return self.regressor(cls_token)
+   

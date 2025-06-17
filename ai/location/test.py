@@ -6,7 +6,7 @@ from torch.utils.data import Dataset
 import re
 from PIL import Image
 from torch.utils.data import DataLoader
-from location.model import ViTRegression
+from ai.location.model import ViTRegression
 from transformers import ViTImageProcessor, ViTModel
 
 # Парсинг названия файла
@@ -102,7 +102,7 @@ test_loader = DataLoader(test_dataset, batch_size=16, shuffle=False)
 
 # 3. Загрузка весов (если есть)
 model = ViTRegression()
-model.load_state_dict(torch.load("location/models/cs2_location_predictor_v1.pth"))  # Пример пути
+model.load_state_dict(torch.load("ai/location/models/cs2_location_predictor_v1.pth"))  # Пример пути
 model.eval()
 
 # Тестирование

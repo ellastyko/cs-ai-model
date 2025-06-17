@@ -6,7 +6,7 @@ from PyQt5.QtGui import QPixmap
 from OpenGL.GL import *
 from OpenGL.GLU import *
 from utils.colors import parse_to_rgba
-from location.utils.dataset import parse_filename
+from ai.location.utils.dataset import parse_filename
 from PyQt5.QtWidgets import QPushButton, QLabel
 import torch
 from PIL import Image

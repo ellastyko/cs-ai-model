@@ -1,12 +1,12 @@
 import os
 import torch
-from location.model import ViTRegression
+from ai.location.model import ViTRegression
 import torch
 from typing import Dict, Optional
 
 class ModelManager:
     _instance = None
-    MODELS_DIR = 'location/models'
+    MODELS_DIR = 'ai/location/models'
     
     # Статические поля класса
     _models_cache: Dict[str, torch.nn.Module] = {}

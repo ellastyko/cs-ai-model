@@ -52,7 +52,6 @@ class CS2Dataset(Dataset):
 def parse_filename(filename):
     # cs_italy -521 -1071 -164 -2.00 68.44 -0.261799 3.490659.JPG
     pattern = r"^(.+?) (-?[\d.]+) (-?[\d.]+) (-?[\d.]+) (-?[\d.]+) (-?[\d.]+) (-?[\d.]+) (-?[\d.]+)\.(jpg|JPG)$"
-    # pattern = r"(.+?) (-?\d+) (-?\d+) (-?\d+) (-?\d+) (-?\d+) (-?[\d.]+) (-?[\d.]+)\.jpg$"
 
     match = re.match(pattern, filename)
     if match:
