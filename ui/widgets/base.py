@@ -82,8 +82,7 @@ class BaseGLWidget(QGLWidget):
         # HUD
         if self.HUD is True:
             self.draw_hud()
-            
-    @override
+
     def drawElements(self):
         pass
 
