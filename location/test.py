@@ -6,6 +6,7 @@ from torch.utils.data import Dataset
 import re
 from PIL import Image
 from torch.utils.data import DataLoader
+from location.model import ViTRegression
 from transformers import ViTImageProcessor, ViTModel
 
 # Парсинг названия файла
@@ -70,16 +71,6 @@ class CS2Dataset(Dataset):
 
         return inputs, labels
     
-
-class ViTRegression(nn.Module):
-    def __init__(self):
-        super().__init__()
-        self.vit = ViTModel.from_pretrained("google/vit-base-patch16-224")
-        self.regressor = nn.Linear(self.vit.config.hidden_size, 5)
-
-    def forward(self, x):
-        outputs = self.vit(**x)
-        return self.regressor(outputs.last_hidden_state[:, 0, :])
 
 def test_model(model, test_loader, device="cuda"):
     model.to(device)
