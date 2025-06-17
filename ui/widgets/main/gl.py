@@ -1,19 +1,18 @@
-import os
-from PyQt5.QtOpenGL import QGLWidget
+import os, torch
+from ui.widgets.base import BaseGLWidget
 from PyQt5.QtWidgets import QMessageBox
 from PyQt5.QtCore import Qt, QPoint
 from OpenGL.GL import *
 from OpenGL.GLU import *
 from utils.colors import parse_to_rgba
 from ai.location.utils.dataset import parse_filename
-import torch
 from PIL import Image
 from utils.models import ModelManager
 from ui.dispatcher import dispatcher
 from utils.map import MapManager
 from utils.config import ConfigManager
 
-class GLWidget(QGLWidget):
+class GLWidget(BaseGLWidget):
     VISUAL_TEST_DIR = 'ai/location/dataset/visualtest'
     REAL_TEST_DIR = 'ai/location/dataset/realtest'
     DATASET_TYPE = 'train'
@@ -39,16 +38,6 @@ class GLWidget(QGLWidget):
         self.upload_map(ConfigManager.get('last_opened_map') or MapManager.get_available_maps()[0])
 
         self.set_objects()
-
-        # Загрузка и подготовка изображения
-        self.last_pos = QPoint()
-    
-    def _init_ui(self):
-        self.setStyleSheet("""
-            border-radius: 5px;
-            background-color: #303030;
-            color: white;
-        """)
 
     def set_mode(self, mode):
         if mode == 'default_map_view':
@@ -185,48 +174,7 @@ class GLWidget(QGLWidget):
         
         self.update()
 
-    def initializeGL(self):
-        glEnable(GL_DEPTH_TEST)
-        glEnable(GL_BLEND)
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
-        glClearColor(0.53, 0.81, 0.98, 1.0)
-
-        # Освещение
-        glEnable(GL_LIGHTING)
-        glEnable(GL_LIGHT0)
-        glLightfv(GL_LIGHT0, GL_POSITION, [1, 1, 1, 0])
-        glLightfv(GL_LIGHT0, GL_AMBIENT, [0.2, 0.2, 0.2, 1])
-        glLightfv(GL_LIGHT0, GL_DIFFUSE, [0.8, 0.8, 0.8, 1])
-        glLightfv(GL_LIGHT0, GL_SPECULAR, [1, 1, 1, 1])
-
-        glMaterialfv(GL_FRONT, GL_AMBIENT, [0.2, 0.2, 0.2, 1])
-        glMaterialfv(GL_FRONT, GL_DIFFUSE, [0.8, 0.8, 0.8, 1])
-        glMaterialfv(GL_FRONT, GL_SPECULAR, [1, 1, 1, 1])
-        glMaterialf(GL_FRONT, GL_SHININESS, 50)
-        glEnable(GL_COLOR_MATERIAL)
-
-    def resizeGL(self, w, h):
-        glViewport(0, 0, w, h)
-        glMatrixMode(GL_PROJECTION)
-        glLoadIdentity()
-        gluPerspective(45, w / h, 0.1, 50000.0)
-        glMatrixMode(GL_MODELVIEW)
-
-    def paintGL(self):
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-        glLoadIdentity()
-
-        # Управление камерой
-        glTranslatef(0, 0, self.zoom)
-        glRotatef(self.rotate_x, 1, 0, 0)
-        glRotatef(self.rotate_z, 0, 0, 1)
-
-        # Источник света
-        glLightfv(GL_LIGHT0, GL_POSITION, [5, 10, 5, 1])
-
-        # Оси координат
-        self.draw_axes(1500)
-
+    def drawElements(self):
         # Отрисовка призм
         for center, size, color in self.objects_3d:
             self.draw_prism(center, size, color)
@@ -239,8 +187,6 @@ class GLWidget(QGLWidget):
         
         # Отрисовка информации о выделенной точке
         self.draw_selection_info()
-        # HUD
-        self.draw_hud()
 
     def draw_dots(self):
         glDisable(GL_LIGHTING)
@@ -326,57 +272,6 @@ class GLWidget(QGLWidget):
         glEnd()
         glEnable(GL_LIGHTING)
 
-    def draw_sphere(self, radius, slices, stacks):
-        quadric = gluNewQuadric()
-        gluSphere(quadric, radius, slices, stacks)
-        gluDeleteQuadric(quadric)
-
-    def draw_prism(self, center, size, color):
-        w, h, d = size[0] / 2, size[1] / 2, size[2] / 2
-        x, y, z = center
-
-        vertices = [
-            [x + w, y - h, z - d], [x + w, y + h, z - d], [x - w, y + h, z - d], [x - w, y - h, z - d],
-            [x + w, y - h, z + d], [x + w, y + h, z + d], [x - w, y - h, z + d], [x - w, y + h, z + d]
-        ]
-
-        glBegin(GL_QUADS)
-        glColor4fv(color)
-
-        # Грани с нормалями
-        faces = [
-            ([0, 1, 2, 3], [0, 0, 1]),  # Передняя
-            ([4, 5, 7, 6], [0, 0, -1]),  # Задняя
-            ([0, 1, 5, 4], [0, 1, 0]),  # Верхняя
-            ([3, 2, 7, 6], [0, -1, 0]),  # Нижняя
-            ([0, 3, 6, 4], [-1, 0, 0]),  # Левая
-            ([1, 2, 7, 5], [1, 0, 0])  # Правая
-        ]
-
-        for indices, normal in faces:
-            glNormal3fv(normal)
-            for idx in indices:
-                glVertex3fv(vertices[idx])
-        glEnd()
-
-    def draw_axes(self, length):
-        glBegin(GL_LINES)
-        glColor3f(1, 0, 0)
-        glVertex3f(0, 0, 0)
-        glVertex3f(length, 0, 0)  # X
-        glColor3f(0, 1, 0)
-        glVertex3f(0, 0, 0)
-        glVertex3f(0, length, 0)  # Y
-        glColor3f(0, 0, 1)
-        glVertex3f(0, 0, 0)
-        glVertex3f(0, 0, length)  # Z
-        glEnd()
-
-    def draw_hud(self):
-        self.renderText(10, 20, f"Rotation: X={self.rotate_x:.1f}° Y={self.rotate_z:.1f}°")
-        self.renderText(10, 40, f"Zoom: Z={self.zoom:.1f}°")
-        self.renderText(10, 60, "Controls: LMB - rotate, Wheel - zoom")
-
     def mousePressEvent(self, event):
         if event.button() == Qt.RightButton:
             # Снимаем выделение со всех точек
@@ -438,15 +333,11 @@ class GLWidget(QGLWidget):
             "selected": False,
             "data": data
         }
-    
-    def wheelEvent(self, event):
-        self.zoom += event.angleDelta().y() * 0.2
-        self.update()
 
     def handle_dot_selection(self, event):
         # Преобразуем координаты мыши в координаты OpenGL
-        viewport = glGetIntegerv(GL_VIEWPORT)
-        modelview = glGetDoublev(GL_MODELVIEW_MATRIX)
+        viewport   = glGetIntegerv(GL_VIEWPORT)
+        modelview  = glGetDoublev(GL_MODELVIEW_MATRIX)
         projection = glGetDoublev(GL_PROJECTION_MATRIX)
         
         y = viewport[3] - event.y()  # Инвертируем Y
@@ -458,12 +349,10 @@ class GLWidget(QGLWidget):
         
         for i, (pos, _, radius, _) in enumerate(self.dots):
             # Преобразуем мировые координаты в экранные
-            screen_pos = gluProject(pos[0], pos[1], pos[2],
-                                  modelview, projection, viewport)
+            screen_pos = gluProject(pos[0], pos[1], pos[2], modelview, projection, viewport)
             
             if screen_pos:
-                dist = ((screen_pos[0] - win_x) ** 2 + 
-                        (screen_pos[1] - win_y) ** 2) ** 0.5
+                dist = ((screen_pos[0] - win_x) ** 2 + (screen_pos[1] - win_y) ** 2) ** 0.5
                 
                 if dist < radius and dist < min_dist:
                     min_dist = dist
@@ -501,8 +390,7 @@ class GLWidget(QGLWidget):
         modelview = glGetDoublev(GL_MODELVIEW_MATRIX)
         projection = glGetDoublev(GL_PROJECTION_MATRIX)
         
-        screen_pos = gluProject(pos[0], pos[1], pos[2],
-                              modelview, projection, viewport)
+        screen_pos = gluProject(pos[0], pos[1], pos[2], modelview, projection, viewport)
         
         if not screen_pos:
             return
@@ -514,16 +402,10 @@ class GLWidget(QGLWidget):
         new_win_x = event.x()
         new_win_y = viewport[3] - event.y()  # Инвертируем Y
         
-        new_pos = gluUnProject(new_win_x, new_win_y, depth,
-                             modelview, projection, viewport)
+        new_pos = gluUnProject(new_win_x, new_win_y, depth, modelview, projection, viewport)
         
         if new_pos:
             # Обновляем позицию кружочка
             color, radius, selected = self.dots[self.selected_dot][1:]
             self.dots[self.selected_dot] = (list(new_pos), color, radius, selected)
             self.update()
-
-    def cleanup(self):
-        self.makeCurrent()
-        # Очисти буферы, текстуры, выделенную память
-        self.doneCurrent()
